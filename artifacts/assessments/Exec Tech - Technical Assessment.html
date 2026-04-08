@@ -378,6 +378,7 @@
       onmouseout="this.style.background='#236cff'">
       Begin Assessment →
     </button>
+    <div id="code-error" style="display:none;color:#fca5a5;font-size:13px;margin-top:0.5rem;"></div>
   </div>
 </div>
 
@@ -411,8 +412,20 @@
     </div>
 
     <div class="name-field">
-      <input type="text" id="candidate-name" placeholder="Enter your name (optional)" />
+      <input type="text" id="candidate-name" placeholder="Enter your full name" />
     </div>
+
+    <div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);
+      border-radius:10px;padding:14px 16px;margin-bottom:1.5rem;text-align:center;">
+      <div style="font-size:11px;color:rgba(147,180,255,0.8);font-weight:700;
+        text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px;">Your Session Code</div>
+      <div id="session-code-display" style="font-size:26px;font-weight:800;color:#fff;
+        letter-spacing:6px;font-family:-apple-system,monospace;"></div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:5px;">
+        You'll be asked to enter this when you start
+      </div>
+    </div>
+
     <button class="btn-primary" onclick="startQuiz()">Start Assessment →</button>
   </div>
 </div>
@@ -558,21 +571,35 @@
 
 <script>
 // ─── ACCESS CONTROL ──────────────────────────────────────────────────────────
-// Set EXPIRES to the date this link should stop working (YYYY-MM-DD).
-// Update this for each candidate before sharing. After this date, the
-// assessment shows an expiry screen instead of the quiz.
-const EXPIRES = '2026-05-31'; // ← Update per candidate session
+// Link expires 24 hours after the candidate first opens it.
+// No manual date management needed — clock starts automatically on first click.
+const EXPIRY_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+const EXPIRY_KEY = 'exec_assessment_first_access';
 
-// ONE-TIME ACCESS CODE
-// This value is injected by Apps Script when the link is generated.
-// The placeholder __CANDIDATE_CODE__ gets replaced server-side with the
-// unique code for each candidate before the page is served.
-// Do not edit this line — control the code from code.gs instead.
-const VALID_CODE = '__CANDIDATE_CODE__';
+// ONE-TIME SESSION CODE
+// Auto-generated on page load — no manual setup needed.
+// Displayed on the welcome screen for the candidate to read and enter.
+// Apps Script emails you automatically when they start.
+function _generateSessionCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+const SESSION_CODE = _generateSessionCode();
+document.addEventListener('DOMContentLoaded', function() {
+  const el = document.getElementById('session-code-display');
+  if (el) el.textContent = SESSION_CODE;
+});
 
 (function() {
-  // Expiry check
-  if (new Date() > new Date(EXPIRES + 'T23:59:59')) {
+  // Expiry check — starts 24hr clock on first open, blocks on return if expired
+  const now       = Date.now();
+  const firstOpen = localStorage.getItem(EXPIRY_KEY);
+
+  if (!firstOpen) {
+    localStorage.setItem(EXPIRY_KEY, now); // First visit — start the clock
+  } else if (now - parseInt(firstOpen) > EXPIRY_DURATION_MS) {
     document.body.innerHTML = `
       <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
         height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
@@ -850,7 +877,11 @@ let candidateName = '';
 
 function startQuiz() {
   candidateName = document.getElementById('candidate-name').value.trim();
-  // Show code gate before starting — candidate must enter their one-time code
+  if (!candidateName) {
+    document.getElementById('candidate-name').style.borderColor = '#e03e3e';
+    document.getElementById('candidate-name').placeholder = 'Please enter your name to continue';
+    return;
+  }
   const gate = document.getElementById('code-gate');
   gate.style.display = 'flex';
   setTimeout(() => document.getElementById('code-input').focus(), 120);
@@ -859,24 +890,22 @@ function startQuiz() {
 function validateCode() {
   const entered = (document.getElementById('code-input').value || '').trim().toUpperCase();
   const gate    = document.getElementById('code-gate');
-  if (entered === VALID_CODE) {
-    // ✅ Correct — start the assessment
+  if (entered === SESSION_CODE) {
+    // ✅ Correct — notify Guillermo and start the assessment
+    if (typeof google !== 'undefined' && google.script) {
+      google.script.run.logSessionStart(candidateName, SESSION_CODE);
+    }
     gate.style.display = 'none';
     showScreen('quiz');
     loadQuestion(0);
   } else {
-    // ❌ Wrong or missing — show "Link expired" and lock the gate
-    gate.innerHTML = `
-      <div style="display:flex;flex-direction:column;align-items:center;gap:1.2rem;
-        background:#1c2f45;border-radius:20px;padding:2.5rem 2rem;max-width:420px;width:100%;text-align:center;">
-        <div style="font-size:52px;">🔒</div>
-        <h2 style="color:#fff;font-size:1.6rem;font-weight:800;letter-spacing:-0.4px;margin:0;">Link Expired</h2>
-        <p style="color:rgba(255,255,255,0.6);font-size:14px;line-height:1.8;margin:0;max-width:320px;">
-          This assessment link is no longer valid or the access code is incorrect.<br>
-          Please contact your Intuit recruiter for a new link.
-        </p>
-        <div style="font-size:11px;color:rgba(255,255,255,0.25);margin-top:0.5rem;">Intuit · Techknow Bar · IT</div>
-      </div>`;
+    // ❌ Wrong code — shake the input and show error
+    const input = document.getElementById('code-input');
+    input.style.borderColor = '#e03e3e';
+    input.style.animation = 'none';
+    setTimeout(() => { input.style.animation = ''; }, 10);
+    const err = document.getElementById('code-error');
+    if (err) { err.style.display = 'block'; err.textContent = 'Incorrect code — check the code shown on the previous screen and try again.'; }
   }
 }
 
