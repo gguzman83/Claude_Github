@@ -3,8 +3,9 @@
 // Redeploy as a Web App after saving.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Your email — receives a notification every time a candidate starts
+// Recipients — both get notified every time a candidate starts
 const NOTIFY_EMAIL = 'guillermo_guzman@intuit.com';
+const NOTIFY_CC    = 'john_mastrorilli@intuit.com';
 
 // ─── WEB APP ENTRY POINT ─────────────────────────────────────────────────────
 // Serves the assessment. No code injection needed — codes are now
@@ -25,9 +26,10 @@ function logSessionStart(candidateName, sessionCode) {
 
   GmailApp.sendEmail(
     NOTIFY_EMAIL,
-    '🔔 Assessment Started — ' + candidateName,
+    'Exec Tech Assessment Started - ' + candidateName,
     '',
     {
+      cc: NOTIFY_CC,
       htmlBody: `
         <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
           max-width:480px;margin:0 auto;background:#f0f4ff;padding:2rem;border-radius:12px;">
