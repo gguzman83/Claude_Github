@@ -3,59 +3,60 @@
 // Redeploy as a Web App after saving.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Your deployment ID — grab it from:
-// Deploy → Manage Deployments → copy the Deployment ID
-const DEPLOYMENT_ID = 'YOUR_DEPLOYMENT_ID_HERE'; // ← Replace this once
+// Your email — receives a notification every time a candidate starts
+const NOTIFY_EMAIL = 'guillermo_guzman@intuit.com';
 
 // ─── WEB APP ENTRY POINT ─────────────────────────────────────────────────────
-// Reads the ?code= URL parameter and injects it into the HTML before serving.
-// The candidate never sees the raw HTML — they just get the rendered page.
-function doGet(e) {
-  const code = (e && e.parameter && e.parameter.code)
-    ? e.parameter.code.toUpperCase()
-    : '';
-
-  // Load index.html and inject the candidate's unique code
-  const html     = HtmlService.createHtmlOutputFromFile('index').getContent();
-  const injected = html.replace('__CANDIDATE_CODE__', code);
-
-  return HtmlService.createHtmlOutput(injected)
+// Serves the assessment. No code injection needed — codes are now
+// auto-generated client-side and displayed directly to the candidate.
+function doGet() {
+  return HtmlService.createHtmlOutputFromFile('index')
     .setTitle('ExecTech Assessment')
     .setSandboxMode(HtmlService.SandboxMode.IFRAME)
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-// ─── CODE GENERATOR ──────────────────────────────────────────────────────────
-// Generates a random 6-character code. Avoids O/0/I/1 to prevent confusion.
-function generateCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return code;
-}
+// ─── SESSION LOGGER ───────────────────────────────────────────────────────────
+// Called automatically from the browser when a candidate enters their code
+// and starts the assessment. Sends you an email with their name, session
+// code, and timestamp — no manual steps needed on your end.
+function logSessionStart(candidateName, sessionCode) {
+  const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'MMM d, yyyy h:mm a z');
 
-// ─── GENERATE A LINK FOR ONE CANDIDATE ───────────────────────────────────────
-// Run this function from the Apps Script editor to generate a candidate link.
-// Steps:
-//   1. Change candidateName below to the candidate's name
-//   2. Click Run → generateLinkForCandidate
-//   3. Click View → Logs to see their unique link and code
-//   4. Copy the link → send to candidate via email or Slack
-//   5. Copy the code → send separately (or keep it for your records)
-function generateLinkForCandidate() {
-  const candidateName = 'Jane Doe'; // ← Change per candidate before running
-
-  const code = generateCode();
-  const link = `https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec?code=${code}`;
-
-  // Log everything for your records
-  Logger.log('─────────────────────────────────────────');
-  Logger.log(`Candidate : ${candidateName}`);
-  Logger.log(`Code      : ${code}`);
-  Logger.log(`Link      : ${link}`);
-  Logger.log('─────────────────────────────────────────');
-  Logger.log('Send the LINK to the candidate.');
-  Logger.log('Keep the CODE — they\'ll need to enter it to start.');
+  GmailApp.sendEmail(
+    NOTIFY_EMAIL,
+    '🔔 Assessment Started — ' + candidateName,
+    '',
+    {
+      htmlBody: `
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+          max-width:480px;margin:0 auto;background:#f0f4ff;padding:2rem;border-radius:12px;">
+          <div style="background:#0d1b2a;border-radius:10px;padding:1.5rem 2rem;color:#fff;margin-bottom:1rem;">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;
+              color:rgba(147,180,255,0.8);margin-bottom:4px;">Intuit · Techknow Bar</div>
+            <h2 style="margin:0;font-size:1.3rem;font-weight:800;">Assessment Started</h2>
+          </div>
+          <table style="width:100%;border-collapse:collapse;background:#fff;
+            border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+            <tr style="border-bottom:1px solid #e2e8f0;">
+              <td style="padding:12px 16px;font-size:12px;font-weight:700;text-transform:uppercase;
+                letter-spacing:1px;color:#64748b;width:120px;">Candidate</td>
+              <td style="padding:12px 16px;font-size:15px;font-weight:700;color:#1a1a2e;">
+                ${candidateName}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e2e8f0;">
+              <td style="padding:12px 16px;font-size:12px;font-weight:700;text-transform:uppercase;
+                letter-spacing:1px;color:#64748b;">Session Code</td>
+              <td style="padding:12px 16px;font-size:18px;font-weight:800;color:#236cff;
+                letter-spacing:4px;font-family:monospace;">${sessionCode}</td>
+            </tr>
+            <tr>
+              <td style="padding:12px 16px;font-size:12px;font-weight:700;text-transform:uppercase;
+                letter-spacing:1px;color:#64748b;">Started At</td>
+              <td style="padding:12px 16px;font-size:14px;color:#1a1a2e;">${timestamp}</td>
+            </tr>
+          </table>
+        </div>`
+    }
+  );
 }
