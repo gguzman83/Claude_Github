@@ -1,130 +1,151 @@
 ---
 name: daily-briefing-guillermo
-description: Weekday morning briefing: Gmail + Calendar + Slack + CLPSE report — posted to Slack DM and saved as Gmail draft
+description: Weekday morning briefing — Gmail + Calendar + Slack + Daily Tasks Doc + Smartsheet CLPSE — posted to Slack DM and saved as Gmail draft
 schedule: 8:30 AM, Monday–Friday (cron: 30 8 * * 1-5)
 ---
 
-You are Guillermo Guzman's personal EA. Every morning, generate a full daily briefing by pulling from three live sources simultaneously, then combining them with a CLPSE project tracker report. Deliver the results to both Slack and Gmail.
+You are running Guillermo's daily morning briefing. Pull from all five sources simultaneously and compile into a single structured briefing.
+
+## Sources to pull
+
+**Gmail** — Search: `is:unread after:<yesterday's date>` — up to 25 results
+
+**Google Calendar** — List all events for today (midnight to 23:59 PT). Use condenseEventDetails: false. Skip all-day OOO markers when listing meetings.
+
+**Slack** — Search DMs/group DMs: `to:me after:<yesterday>` with channel_types: im,mpim. Also search @mentions: `@W8DFFCX24 after:<yesterday>` across all channels.
+
+**Daily Tasks Google Doc** — Fetch this doc: https://docs.google.com/document/d/1PRS_iUx0ma6JGt_hJGtAU-oqIgMHpnuLNbILpq9346k/edit — Navigate to the tab matching today's date. Extract only bolded items that are NOT struck through. These are the Day to Day Priorities.
+
+**Smartsheet** — Fetch the Care Launch Requests sheet: https://app.smartsheet.com/sheets/r88mFFmvxcrWcXVQVPRJ648Wj4vXJ9C8p3Qx3fC1 — Extract columns: Request Name, Assigned To (CLPSE), CLPSE Project Status. Always live — never hardcode counts.
 
 ---
 
-## STEP 1 — Pull all data sources in parallel
+## Output
 
-Run all three of the following at the same time:
-
-**A. Gmail** — Search for unread messages in the last 24 hours (up to 25 results).
-Query: `is:unread after:[yesterday's date in YYYY/MM/DD]`
-
-**B. Google Calendar** — List all events for today in the `America/Los_Angeles` timezone.
-Use `timeMin` = today at 00:00:00 and `timeMax` = today at 23:59:59. Set `condenseEventDetails: false` to capture attendees and response status.
-
-**C. Slack** — Search for DMs sent to Guillermo and @mentions of Guillermo in the last 24 hours.
-Guillermo's Slack user ID is `W8DFFCX24`.
-Run two searches:
-- `to:<@W8DFFCX24> after:[yesterday YYYY-MM-DD]` (channel_types: im, mpim)
-- `<@W8DFFCX24> after:[yesterday YYYY-MM-DD]` (all channel types)
+Deliver the briefing in TWO ways:
+1. Post as a Slack DM to D2YFUFTSR (split into multiple messages if needed — one per section)
+2. Create a Gmail draft to guillermo_guzman@intuit.com with subject: "Daily Briefing — [Day, Month Date, Year]"
 
 ---
 
-## STEP 2 — Read the CLPSE Spotlight Tracker
+## Slack Formatting Rules (IMPORTANT)
 
-Locate the file `CLPSE Spotlight Tracker.xlsx` in the user's workspace folder (the mounted directory). If not found there, check the uploads folder. Read it using Python + pandas:
+Slack does NOT render markdown tables. Use bullet lists and plain text instead.
 
-```python
-import pandas as pd
-file_path = "[path to CLPSE Spotlight Tracker.xlsx]"
-main = pd.read_excel(file_path, sheet_name='Main_Tracker')
-archive = pd.read_excel(file_path, sheet_name='Archive')
-```
+BOLD TEXT: The Slack tool uses STANDARD MARKDOWN, not Slack mrkdwn. This means:
+- **double asterisks** = bold (ALWAYS use this for bold)
+- _single underscores_ = italic
+- Single *asterisks* = italic (do NOT use for bold)
 
-Extract the following:
-- **Total Active Projects**: count all non-blank rows in Main_Tracker
-- **WIP count**: rows where `Project Status` == "WIP" (case-insensitive)
-- **On Hold count**: rows where `Project Status` == "On Hold" (case-insensitive)
-- **Completed FY26 count**: rows in Archive sheet where `Completion Date` >= 2025-08-01 and `Proejct Status` == "COMPLETE"
-- For WIP rows: capture `Project` name and `CLPSE` owner
-- For On Hold rows: capture `Project` name and `CLPSE` owner
+CRITICAL BOLD REQUIREMENTS — every one of these must use **double asterisks**:
+- Every section emoji header: **🗓️ Today's Meetings**, **✅ Prioritized To-Do List**, **📌 Day to Day Priority**, **📊 CLPSE Project Status**, **👥 Team Awareness**
+- Every priority sub-header: **🔴 P1 — Urgent**, **🟡 P2 — Action Today**, **🟢 P3 — FYI / No Response Needed**
+- The title line of every numbered item: **1. [ServiceNow] TASK3425795 — Druva Backup Request**
+- Sub-section labels: **In Progress**, **On Hold**, **Complete**
+- Meeting times: **08:00–08:15**
 
----
-
-## STEP 3 — Compose the briefing
-
-Using today's date, current time in PT, and all gathered data, compose the briefing with these sections:
-
-### Meetings Table
-For each accepted/tentative calendar event today, list:
-- Time (PT)
-- Event name
-- Status: Done (✅) if already passed, Now (🔴) if currently happening, Up Next (⏳) if upcoming
-- Flag any event starting within 30 minutes of current time as urgent
-
-Skip events the user declined. Include all-day events as team awareness only.
-
-### Prioritized To-Do List
-Classify each Gmail and Slack item into:
-- 🔴 **P1 — Urgent**: Direct questions or assignments needing response before noon, overdue items, anything blocking a colleague
-- 🟡 **P2 — Action Today**: Items needing Guillermo's action today but not immediately urgent
-- 🟢 **P3 — FYI**: Automated reports, informational forwards, no response needed
-
-For each item include: [Source] Title, 1-2 sentence context, and a direct link to the message.
-
-### CLPSE Report
-Use the data extracted in Step 2. Format:
-
-Total Active Projects: [n] | WIP: [n] | On Hold: [n] | Completed FY26: [n]
-
-WIP Projects ([n]):
-[numbered list: Project Name — CLPSE Owner]
-
-On Hold ([n]):
-[numbered list: Project Name — CLPSE Owner]
-
-Source: CLPSE_Spotlight_Tracker.xlsx
-
-### Team Awareness
-List any teammates detected as OOO from calendar all-day events or Slack status indicators. Note any all-day training or off-site blocks that may limit availability.
+Other rules:
+- Use • for bullet points
+- Always put a blank line between every section header and its content
+- Always put a blank line between every individual item (each meeting, each to-do, each project)
+- Always put a blank line between every major section
+- Never use markdown table syntax (no pipe characters for tables) — use bullet lists instead
+- Use emoji section headers for visual separation: 🗓️ 📋 📌 📊 👥
 
 ---
 
-## STEP 4 — Post to Slack DM
+## Section Format
 
-Post the full briefing to Guillermo's Slack DM (channel ID: `D2YFUFTSR`).
+### **🗓️ Today's Meetings**
 
-If the message exceeds Slack's 5000-character limit per block, split it into multiple sequential messages in the same DM in this order:
-1. Meetings
-2. To-Do List
-3. CLPSE Report + Team Awareness
+For each meeting, one line per meeting with a blank line between each:
 
-Use Slack bold formatting (*text*) for section headers. Do NOT use markdown tables — use plain text with line breaks instead.
+**HH:MM–HH:MM** — Event Name (Organizer) 🕓 Up next / 🔴 Now / ✅ Done
 
----
-
-## STEP 5 — Create Gmail draft
-
-Create a Gmail draft to `guillermo_guzman@intuit.com` with:
-- **Subject**: `Daily Briefing — [Today's Date, e.g. March 25, 2026]`
-- **Body**: Plain text version of the full briefing (all four sections: Meetings, To-Do List, CLPSE Report, Team Awareness)
-- **contentType**: `text/plain`
+[OOO teammates listed after meetings, clearly labeled]
 
 ---
 
-## Formatting rules
-- All times in America/Los_Angeles (PT)
-- Today's date format: "Wednesday, March 25, 2026"
-- Use dashes (-) instead of em dashes or special unicode arrows in Slack messages
-- Do not use markdown tables in Slack (they don't render); use plain line-by-line formatting
-- Keep Slack messages under 5000 characters per block
+### **✅ Prioritized To-Do List**
 
-## Sorting guidance
-- P1 = direct questions or requests from colleagues that would be blocking or rude to leave unanswered before noon; time-sensitive operational items; newly assigned tickets
-- P2 = tasks that need action today but aren't time-critical before noon
-- P3 = notifications, resolved threads, automated reports, FYI-only messages
-- If it is already past noon when this runs, reframe P1 as "overdue — action ASAP"
-- Flag meetings starting within 30 minutes with a Now indicator
-- Include ticket numbers AND plain-language descriptions for ServiceNow/Jira emails
+#### **🔴 P1 — Urgent**
 
-## Success criteria
-- Slack DM posted to D2YFUFTSR with all four sections
-- Gmail draft saved to guillermo_guzman@intuit.com
-- CLPSE stats populated from live file data (not hardcoded)
-- All P1 items flagged with direct message links
+**N. [Source] Short title**
+What was asked, who asked it, what action is needed.
+→ link
+
+[blank line between each item]
+
+#### **🟡 P2 — Action Today**
+
+**N. [Source] Short title**
+Brief context + what to do.
+→ link
+
+[blank line between each item]
+
+#### **🟢 P3 — FYI / No Response Needed**
+
+**N. [Source] Short title**
+One sentence of context.
+
+[blank line between each item]
+
+---
+
+### **📌 Day to Day Priority**
+_Live from Daily Tasks FY26 Q2-Q4 — today's bolded items_
+
+• **Item** — context or sub-bullet if relevant
+
+[blank line between each item]
+[Skip struck-through items]
+
+Link: https://docs.google.com/document/d/1PRS_iUx0ma6JGt_hJGtAU-oqIgMHpnuLNbILpq9346k/edit
+
+---
+
+### **📊 CLPSE Project Status**
+_Live from Smartsheet — Care Launch Requests_
+
+🟡 In Progress: N
+⏸ On Hold: N
+✅ Complete: N
+❌ Cancelled: N
+**Total: N**
+
+**In Progress**
+• Project name — CLPSE name
+
+[blank line between each project]
+
+**On Hold**
+• Project name — CLPSE name
+
+[blank line between each project]
+
+[Complete and Cancelled are counts only — no detail list]
+
+Link: https://app.smartsheet.com/sheets/r88mFFmvxcrWcXVQVPRJ648Wj4vXJ9C8p3Qx3fC1
+
+---
+
+### **👥 Team Awareness**
+• Name — OOO reason + dates (backup contact if known)
+
+---
+
+_Sources: Gmail · Google Calendar · Smartsheet · Daily Tasks Doc_
+
+---
+
+## Briefing Rules
+- Lead with most urgent item needing human attention
+- Summarize full Slack threads, not just the last message
+- ServiceNow emails: include ticket number AND plain-language description
+- Flag meetings starting within 30 minutes with 🔴 Now
+- Past noon? Reframe P1 as "overdue — action ASAP"
+- Skip P3 section if nothing is genuinely FYI-only
+- Day to Day Priority: today's tab only, bolded, skip struck-through
+- CLPSE counts: always live from Smartsheet fetch, never hardcoded
+- Spacing: always a blank line between items, always a blank line between sections — make it easy to scan
