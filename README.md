@@ -1,83 +1,134 @@
-# Claude Prompt Vault — Guillermo Guzman
+# 🤖 Claude_Github — Guillermo's AI Toolkit
 
-A version-controlled reference library for Claude skills, prompt templates, artifacts, and context files used across Cowork sessions and Claude conversations.
-
----
-
-## How to Use This Repo
-
-At the start of any Claude or Cowork session, reference files from this vault to instantly ground Claude in your role, workflows, and tools. Paste file contents directly into the conversation or attach them when starting a new session.
-
-**Quick start:** Attach `context/role-context.md` to any new Claude session to skip re-explaining who you are and how you work.
+> A personal reference library of Claude skills, artifacts, apps, and tools built for Intuit IT operations.
+> Maintained by **Guillermo Guzman III** — Onsite IT Manager, T4i CARE, Intuit
 
 ---
 
-## Folder Structure
+## 📋 Table of Contents
 
-### `/skills`
-Extracted SKILL.md files from installed `.skill` bundles. Each file is a ready-to-invoke prompt skill that Claude can execute.
-
-| File | What it does |
-|------|-------------|
-| `daily-briefing.md` | Morning briefing: Gmail + Calendar + Slack compiled into a prioritized to-do list |
-| `clpse-thankyou.md` | Reads a Google Drive scope doc and drafts a Slack recognition message for a CLPSE |
-| `promotion-proposal.md` | Generates a polished `.docx` promotion proposal for Intuit review cycles |
-
-#### `/skills/scheduled`
-Skills wired to a cron schedule via the Cowork scheduler.
-
-| Folder | Schedule | Description |
-|--------|----------|-------------|
-| `daily-briefing-guillermo/` | Mon–Fri 8:30 AM PT | Personalized briefing with CLPSE tracker + Slack delivery |
+- [🧠 Skills — User](#-skills--user)
+- [⏰ Skills — Scheduled](#-skills--scheduled)
+- [📜 Apps Script](#-apps-script)
+- [⚙️ Configs](#-configs)
+- [🎨 Artifacts](#-artifacts)
+- [🔧 How-To Guides](#-how-to-guides)
+- [📁 Folder Structure](#-folder-structure)
+- [🔄 How to Update This Page](#-how-to-update-this-page)
 
 ---
 
-### `/prompts`
-Reusable prompt templates, grouped by communication context. Populate these as you build and refine prompts you use repeatedly.
+## 🧠 Skills — User
 
-| Subfolder | Use for |
-|-----------|---------|
-| `team-comms/` | DMs, team announcements, shift notes, conflict escalation |
-| `exec-updates/` | Cross-functional syncs, leadership-facing status updates |
-| `recognition/` | Shoutouts, wins framing, Spotlight nominations |
+Skills installed into Claude that trigger automatically based on what you ask.
 
----
+**Install location:** `~/Library/Application Support/Claude/skills/user/`
 
-### `/artifacts`
-Claude-generated outputs worth keeping as references or templates.
-
-| Path | Description |
-|------|-------------|
-| `dashboards/Legal_Hold_Workflow_Dashboard.html` | Current legal hold workflow dashboard (interactive HTML) |
-| `dashboards/archive/Legal_Hold_Workflow_Dashboard_V1.html` | Previous version — archived for reference |
-| `briefings/daily_briefing_march25.html` | March 2025 daily briefing (HTML format) |
-| `briefings/daily-briefing-2026-04-07.md` | April 7, 2026 daily briefing output (Markdown) |
+| Skill | Description | Files |
+|---|---|---|
+| **tech-promo-packet** | Generates a branded `.docx` promotion proposal for Intuit technicians. Input a tech's name, current/target role, and raw performance notes — outputs a polished Word doc with metrics cards, 3 evidence pillars, and a manager recommendation block. Optionally drafts a Slack DM to your manager. | [SKILL.md](skills/user/tech-promo-packet/SKILL.md) · [HOW-TO](skills/user/tech-promo-packet/HOW-TO_techPromoPacket.md) |
+| **daily-briefing** | Pulls from Gmail, Google Calendar, Slack, and Smartsheet CLPSE tracker to generate a personalized morning briefing. Delivers formatted Slack messages and a Gmail draft. | [SKILL.md](skills/user/daily-briefing/SKILL.md) |
+| **clpse-thankyou** | Reads a Scope of Project Summary from Google Drive and drafts a high-energy Slack recognition message for the CLPSE or contributors on that project. | [SKILL.md](skills/user/clpse-thankyou/SKILL.md) |
+| **snagit-organizer** | Organizes and renames Snagit screenshots and recordings based on content and context. | [SKILL.md](skills/user/snagit-organizer/SKILL.md) |
+| **chat-summary** | Generates a clean, structured end-of-session summary from one or more Claude chats. Captures what was worked on, outputs produced, key decisions, next steps, and reference info. Supports inline, .docx, Slack draft, or GitHub log output. | [SKILL.md](skills/user/chat-summary/SKILL.md) |
 
 ---
 
-### `/context`
-Org and role context files. Attach these to new Claude sessions to skip re-explaining your setup.
+## ⏰ Skills — Scheduled
 
-| File | Contents |
-|------|----------|
-| `role-context.md` | Who you are, how you work, tools, workflows, communication style |
-| `team-roster.md` | *(add your team members, roles, and locations)* |
-| `recurring-workflows.md` | *(document your repeating operational workflows)* |
+Skills that run on a schedule via Claude Cowork (e.g., daily briefings posted automatically to Slack).
 
----
+**Install location:** `~/Library/Application Support/Claude/skills/scheduled/`
 
-### `/configs`
-Scheduled task definitions and configuration references.
-
-| File | Contents |
-|------|----------|
-| `scheduled-tasks.md` | Log of all active scheduled tasks with cron strings and data sources |
+| Skill | Description | File |
+|---|---|---|
+| **daily-briefing-guillermo** | Scheduled version of the daily briefing skill — runs weekdays at 8:30 AM PT and posts directly to Guillermo's Slack DM channel. Pulls from Gmail, Calendar, Slack, Smartsheet CLPSE tracker, and Daily Tasks Google Doc. | [SKILL.md](skills/scheduled/daily-briefing-guillermo/SKILL.md) |
 
 ---
 
-## Maintenance Notes
+## 📜 Apps Script
 
-- Keep one canonical version of each skill in `/skills` — the `.skill` archive originals live in `Claude_ M17HR46WK3/Downloaded_Skills` on your machine.
-- Archive old artifact versions to `artifacts/*/archive/` rather than deleting them.
-- Update `context/role-context.md` whenever your team, tools, or workflows change.
-- Add new prompt templates to `/prompts` as you refine them — name files descriptively (e.g., `exec-updates/weekly-status-template.md`).
+Google Apps Script files for automating Sheets, Docs, Gmail, and Calendar workflows.
+
+| Script | Description | Files |
+|---|---|---|
+| **Apps Script Tool** | Google Apps Script with a web app interface. Backend logic in `Code.gs`, web UI in `index.html`. Update this description with what the script actually does. | [Code.gs](apps-script/Code.gs) · [index.html](apps-script/index.html) |
+
+---
+
+## ⚙️ Configs
+
+Configuration files for Claude Cowork scheduled tasks and other automation settings.
+
+| Config | Description | File |
+|---|---|---|
+| **scheduled-tasks** | Defines the scheduled Cowork tasks — task names, timing, skill references, and delivery targets (e.g., Slack channel IDs). | [scheduled-tasks.md](configs/scheduled-tasks.md) |
+
+---
+
+## 🎨 Artifacts
+
+Standalone React apps, HTML tools, and interactive widgets built inside Claude.
+
+| Artifact | Description | File |
+|---|---|---|
+| *(add yours here)* | When Claude builds an artifact you want to keep, save the code under `artifacts/` | — |
+
+---
+
+## 🔧 How-To Guides
+
+Step-by-step guides for using skills, tools, and workflows.
+
+| Guide | Description | File |
+|---|---|---|
+| **tech-promo-packet** | How to trigger the promo packet skill, what info to have ready, example prompt, and how to update the skill. | [HOW-TO](skills/user/tech-promo-packet/HOW-TO_techPromoPacket.md) |
+
+---
+
+## 📁 Folder Structure
+
+```
+Claude_Github/
+├── README.md                              ← Master index (you are here)
+├── configs/
+│   └── scheduled-tasks.md                ← Cowork scheduled task configs
+├── apps-script/
+│   ├── Code.gs                           ← Apps Script backend
+│   └── index.html                        ← Apps Script web UI
+├── skills/
+│   ├── user/
+│   │   ├── tech-promo-packet/
+│   │   │   ├── SKILL.md
+│   │   │   └── HOW-TO_techPromoPacket.md
+│   │   ├── daily-briefing/
+│   │   │   └── SKILL.md
+│   │   ├── clpse-thankyou/
+│   │   │   └── SKILL.md
+│   │   ├── snagit-organizer/
+│   │   └── chat-summary/
+│   │       └── SKILL.md
+│   └── scheduled/
+│       └── daily-briefing-guillermo/
+│           └── SKILL.md
+└── artifacts/                            ← React apps, HTML tools (add here)
+```
+
+---
+
+## 🔄 How to Update This Page
+
+When you add something new, update this README and push:
+
+```bash
+cd /Users/gguzman/Desktop/Claude_Desktop_MTV/Claude_Github
+git add README.md
+git commit -m "Update README — add [name]"
+git push
+```
+
+Or ask Claude: *"Update my GitHub README to add [name] with this description"* and paste your notes.
+
+---
+
+*Last updated: April 13, 2026 — Guillermo Guzman III, Onsite IT Manager, T4i CARE*
