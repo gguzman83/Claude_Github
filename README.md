@@ -30,7 +30,7 @@ Skills installed into Claude that trigger automatically based on what you ask.
 | **daily-briefing** | Pulls from Gmail, Google Calendar, Slack, and Smartsheet CLPSE tracker to generate a personalized morning briefing. Delivers formatted Slack messages and a Gmail draft. | [SKILL.md](skills/user/daily-briefing/SKILL.md) |
 | **clpse-thankyou** | Reads a Scope of Project Summary from Google Drive and drafts a high-energy Slack recognition message for the CLPSE or contributors on that project. | [SKILL.md](skills/user/clpse-thankyou/SKILL.md) |
 | **snagit-organizer** | Organizes and renames Snagit screenshots and recordings based on content and context. | [SKILL.md](skills/user/snagit-organizer/SKILL.md) |
-| **chat-summary** | Generates a clean, structured end-of-session summary from one or more Claude chats. Captures what was worked on, outputs produced, key decisions, next steps, and reference info. Supports inline, .docx, Slack draft, or GitHub log output. | [SKILL.md](skills/user/chat-summary/SKILL.md) |
+| **chat-summary** | Generates a clean, structured end-of-session summary from one or more Claude chats. Captures what was worked on, outputs produced, key decisions, next steps, and reference info. Supports inline, `.docx`, Slack draft, or GitHub log output. | [SKILL.md](skills/user/chat-summary/SKILL.md) |
 
 ---
 
@@ -48,11 +48,13 @@ Skills that run on a schedule via Claude Cowork (e.g., daily briefings posted au
 
 ## 📜 Apps Script
 
-Google Apps Script files for automating Sheets, Docs, Gmail, and Calendar workflows.
+Google Apps Script files for automating Sheets, Docs, Gmail, and Calendar workflows. Each project includes a `Code.gs` backend and `index.html` web UI unless noted.
 
 | Script | Description | Files |
 |---|---|---|
-| **Apps Script Tool** | Google Apps Script with a web app interface. Backend logic in `Code.gs`, web UI in `index.html`. Update this description with what the script actually does. | [Code.gs](apps-script/Code.gs) · [index.html](apps-script/index.html) |
+| **daily-notes-app** | Web app for logging daily notes and tasks. Stores entries in UserProperties (syncs across machines) and writes completed/new entries directly to the Daily Tasks FY26 Q2-Q4 Google Doc (`DOC_ID: 1PRS_iUx0ma6...`). Served via `doGet()` as a mobile-friendly web app. | [Code.gs](daily-notes-app/Code.gs) · [index.html](daily-notes-app/index.html) |
+| **exec-tech-assessment** | Web app for running ExecTech candidate assessments. Auto-generates access codes client-side and emails results to Guillermo + John Mastrorilli on submission. Deployed as an iframe-sandboxed web app. | [Code.gs](exec-tech-assessment/Code.gs) · [index.html](exec-tech-assessment/index.html) |
+| **send-daily-briefing** | Time-triggered script that automatically sends any Gmail draft with "Daily Briefing" in the subject. Runs weekdays at 8:40 AM PT — 5 minutes after Cowork creates the briefing draft at 8:35 AM. | [Code.gs](send-daily-briefing/Code.gs) |
 
 ---
 
@@ -83,6 +85,7 @@ Step-by-step guides for using skills, tools, and workflows.
 | Guide | Description | File |
 |---|---|---|
 | **tech-promo-packet** | How to trigger the promo packet skill, what info to have ready, example prompt, and how to update the skill. | [HOW-TO](skills/user/tech-promo-packet/HOW-TO_techPromoPacket.md) |
+| **daily-notes-app** | How to deploy and use the Daily Notes web app in Google Apps Script. | [HOW-TO](daily-notes-app/Daily_Notes_App_HowTo.docx) |
 
 ---
 
@@ -90,12 +93,18 @@ Step-by-step guides for using skills, tools, and workflows.
 
 ```
 Claude_Github/
-├── README.md                              ← Master index (you are here)
+├── README.md                                  ← Master index (you are here)
 ├── configs/
-│   └── scheduled-tasks.md                ← Cowork scheduled task configs
-├── apps-script/
-│   ├── Code.gs                           ← Apps Script backend
-│   └── index.html                        ← Apps Script web UI
+│   └── scheduled-tasks.md                    ← Cowork scheduled task configs
+├── daily-notes-app/
+│   ├── Code.gs                               ← Daily Notes backend
+│   ├── index.html                            ← Daily Notes web UI
+│   └── Daily_Notes_App_HowTo.docx            ← How-to guide
+├── exec-tech-assessment/
+│   ├── Code.gs                               ← ExecTech Assessment backend
+│   └── index.html                            ← Assessment web UI
+├── send-daily-briefing/
+│   └── Code.gs                               ← Auto-send daily briefing draft
 ├── skills/
 │   ├── user/
 │   │   ├── tech-promo-packet/
@@ -106,12 +115,13 @@ Claude_Github/
 │   │   ├── clpse-thankyou/
 │   │   │   └── SKILL.md
 │   │   ├── snagit-organizer/
+│   │   │   └── SKILL.md
 │   │   └── chat-summary/
 │   │       └── SKILL.md
 │   └── scheduled/
 │       └── daily-briefing-guillermo/
 │           └── SKILL.md
-└── artifacts/                            ← React apps, HTML tools (add here)
+└── artifacts/                                ← React apps, HTML tools (add here)
 ```
 
 ---
