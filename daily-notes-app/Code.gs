@@ -111,16 +111,10 @@ function appendToDoc(payloadJson) {
     // Get or create the chosen date's tab (today or tomorrow)
     var body = getOrCreateTodayTab(doc, data.targetDate);
 
-    var FONT = 'Avenir';
+    // Clear existing content before writing fresh
+    body.clear();
 
-    // ── Page title — bold, italic, underline, Avenir ──────────────────────────
-    var titleP = body.appendParagraph('Priorities - Must Complete/Notes');
-    titleP.setHeading(DocumentApp.ParagraphHeading.HEADING1);
-    titleP.editAsText()
-      .setFontFamily(FONT)
-      .setBold(true)
-      .setItalic(true)
-      .setUnderline(true);
+    var FONT = 'Avenir';
 
     // ── Helper: write one section ─────────────────────────────────────────────
     // A blank paragraph before each section breaks the list context so numbering
@@ -130,14 +124,15 @@ function appendToDoc(payloadJson) {
 
       body.appendParagraph('');
 
-      // Section header — bold + italic + Avenir, level 0 → "1. Label"
+      // Section header — bold only + Avenir, level 0 → "1. Label"
       var header = body.appendListItem(label);
       header.setNestingLevel(0);
       header.setGlyphType(DocumentApp.GlyphType.DIGIT);
       header.editAsText()
         .setFontFamily(FONT)
         .setBold(true)
-        .setItalic(true);
+        .setItalic(false)
+        .setUnderline(false);
 
       // Items — Avenir only, no bold/italic, level 1 → "   1. item"
       for (var i = 0; i < notes.length; i++) {
@@ -150,16 +145,21 @@ function appendToDoc(payloadJson) {
           .setItalic(false);
         if (notes[i].done) item.editAsText().setStrikethrough(true);
 
-        // Sub-detail — Avenir only, level 2 → "      i. detail"
+        // Sub-details — one sub-bullet per line, level 2 → "      i. detail"
         if (notes[i].detail) {
-          var sub = body.appendListItem(notes[i].detail);
-          sub.setNestingLevel(2);
-          sub.setGlyphType(DocumentApp.GlyphType.ROMAN_LOWER);
-          sub.editAsText()
-            .setFontFamily(FONT)
-            .setBold(false)
-            .setItalic(false);
-          if (notes[i].done) sub.editAsText().setStrikethrough(true);
+          var detailLines = notes[i].detail.split('\n');
+          for (var d = 0; d < detailLines.length; d++) {
+            var line = detailLines[d].trim();
+            if (!line) continue;
+            var sub = body.appendListItem(line);
+            sub.setNestingLevel(2);
+            sub.setGlyphType(DocumentApp.GlyphType.ROMAN_LOWER);
+            sub.editAsText()
+              .setFontFamily(FONT)
+              .setBold(false)
+              .setItalic(false);
+            if (notes[i].done) sub.editAsText().setStrikethrough(true);
+          }
         }
       }
     }
@@ -170,7 +170,7 @@ function appendToDoc(payloadJson) {
       writeSection(sections[s].label, sections[s].notes);
     }
 
-    // ── Notes (live entries) — bold + italic header, Avenir items ────────────
+    // ── Notes (live entries) — bold only header, Avenir items ───────────────
     var live = data.live || [];
     if (live.length > 0) {
       body.appendParagraph('');
@@ -180,7 +180,8 @@ function appendToDoc(payloadJson) {
       liveHdr.editAsText()
         .setFontFamily(FONT)
         .setBold(true)
-        .setItalic(true);
+        .setItalic(false)
+        .setUnderline(false);
       for (var i = 0; i < live.length; i++) {
         var timeStr = Utilities.formatDate(new Date(live[i].ts), tz, 'h:mm a');
         var item = body.appendListItem(timeStr + '  ' + live[i].text);
