@@ -456,7 +456,7 @@ function renderCat(cat){
         <input type="checkbox" class="chk" ${n.done?'checked':''} onchange="toggleNote('${cat}','${n.id}',this.checked)">
         <div class="note-body">
           <div class="note-text">${esc(n.text)}</div>
-          ${n.detail?`<div class="note-detail">${esc(n.detail)}</div>`:''}
+          ${n.detail?n.detail.split('\n').filter(l=>l.trim()).map(l=>`<div class="note-detail">${esc(l)}</div>`).join(''):''}
           <div class="note-meta">
             <span>${fmtT(n.ts)}</span>
             ${n.source?`<span class="src-tag">${esc(n.source)}</span>`:''}
@@ -470,7 +470,7 @@ function renderCat(cat){
       </div>
       ${isEd?`<div class="edit-form">
         <textarea id="et-${n.id}" onkeydown="if(event.key==='Escape')cancelEdit()">${esc(n.text)}</textarea>
-        <input id="ed-${n.id}" value="${esc(n.detail||'')}" placeholder="Details / context (optional)">
+        <textarea id="ed-${n.id}" placeholder="Details / context — one item per line" rows="3" style="width:100%;box-sizing:border-box;margin-top:4px;resize:vertical;font-family:inherit;font-size:13px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;color:#1e293b;background:#fff">${esc(n.detail||'')}</textarea>
         <div class="edit-acts">
           <button class="btn btn-primary btn-sm" onclick="saveEdit('${cat}','${n.id}')">Save</button>
           <button class="btn btn-sm btn-outline" onclick="cancelEdit()">Cancel</button>
@@ -574,12 +574,14 @@ document.addEventListener('DOMContentLoaded',()=>{
 // ── Plain text for "Copy Only" ────────────────────────────────────────────────
 function buildSyncText(){
   const sections = _buildSyncSections();
-  const lines = ['Priorities - Must Complete/Notes', '─'.repeat(44), ''];
+  const lines = [];
   sections.forEach(s => {
     lines.push(`1. ${s.label}`);
     s.notes.forEach((n, i) => {
       lines.push(`   ${i+1}. ${n.done ? '~~'+n.text+'~~' : n.text}`);
-      if (n.detail) lines.push(`         i. ${n.detail}`);
+      if (n.detail) {
+        n.detail.split('\n').filter(l=>l.trim()).forEach(dl => lines.push(`         i. ${dl}`));
+      }
     });
     lines.push('');
   });
@@ -594,16 +596,18 @@ function buildSyncText(){
 // ── HTML for the modal preview (bold headers, proper spacing) ─────────────────
 function buildSyncHtml(){
   const sections = _buildSyncSections();
-  let html = `<div style="font-family:monospace;font-size:12px;color:#374151;line-height:1.5">
-    <div style="font-weight:700;font-size:13px;margin-bottom:2px">Priorities - Must Complete/Notes</div>
-    <div style="border-bottom:2px solid #e2e8f0;margin-bottom:14px"></div>`;
+  let html = `<div style="font-family:monospace;font-size:12px;color:#374151;line-height:1.5">`;
   sections.forEach(s => {
     html += `<div style="margin-bottom:14px">
       <div style="font-weight:700;margin-bottom:4px">1. ${esc(s.label)}</div>`;
     s.notes.forEach((n, i) => {
       const txt = n.done ? `<s style="color:#94a3b8">${esc(n.text)}</s>` : esc(n.text);
       html += `<div style="padding-left:22px">${i+1}. ${txt}</div>`;
-      if (n.detail) html += `<div style="padding-left:44px;color:#64748b">i. ${esc(n.detail)}</div>`;
+      if (n.detail) {
+        n.detail.split('\n').filter(l=>l.trim()).forEach(dl => {
+          html += `<div style="padding-left:44px;color:#64748b">i. ${esc(dl)}</div>`;
+        });
+      }
     });
     html += `</div>`;
   });
