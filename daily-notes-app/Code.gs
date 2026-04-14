@@ -47,54 +47,55 @@ function saveNotes(payload) {
 }
 
 // ─── Create or find today's tab, nested under the current month's tab ─────────
-function getOrCreateTodayTab(doc) {
-  var tz         = Session.getScriptTimeZone();
-  var todayFull  = Utilities.formatDate(new Date(), tz, 'EEEE, MMMM d'); // Monday, April 13
-  var todayShort = Utilities.formatDate(new Date(), tz, 'EEE, MMMM d');  // Mon, April 13
+// targetDateIso — ISO date string from the frontend (today or tomorrow).
+// Defaults to now if omitted.
+function getOrCreateTodayTab(doc, targetDateIso) {
+  var tz      = Session.getScriptTimeZone();
+  var date    = targetDateIso ? new Date(targetDateIso) : new Date();
+  // "Tuesday, April 14" — matches the format shown in the doc sidebar
+  var tabTitle  = Utilities.formatDate(date, tz, 'EEEE, MMMM d');
+  var tabShort  = Utilities.formatDate(date, tz, 'EEE, MMMM d');
 
-  function isToday(t) { t=(t||'').trim(); return t===todayFull||t===todayShort; }
+  function matchesDate(t) { t=(t||'').trim(); return t===tabTitle||t===tabShort; }
 
-  // ── Check if today's tab already exists ──────────────────────────────────
+  // ── Check if this date's tab already exists ───────────────────────────────
   var tabs = doc.getTabs();
   for (var t = 0; t < tabs.length; t++) {
-    if (isToday(tabs[t].getTitle())) return tabs[t].asDocumentTab().getBody();
+    if (matchesDate(tabs[t].getTitle())) return tabs[t].asDocumentTab().getBody();
     var kids = tabs[t].getChildTabs ? tabs[t].getChildTabs() : [];
     for (var c = 0; c < kids.length; c++) {
-      if (isToday(kids[c].getTitle())) return kids[c].asDocumentTab().getBody();
+      if (matchesDate(kids[c].getTitle())) return kids[c].asDocumentTab().getBody();
     }
   }
 
-  // ── Find the current month's parent tab (e.g. "April 2026 Q4") ────────────
-  var currentMonth = Utilities.formatDate(new Date(), tz, 'MMMM');
-  var currentYear  = Utilities.formatDate(new Date(), tz, 'yyyy');
-  var parentTabId  = null;
+  // ── Find the month's parent tab (e.g. "April 2026 Q4") ───────────────────
+  var targetMonth = Utilities.formatDate(date, tz, 'MMMM');
+  var targetYear  = Utilities.formatDate(date, tz, 'yyyy');
+  var parentTabId = null;
   for (var t = 0; t < tabs.length; t++) {
     var title = tabs[t].getTitle();
-    if (title.indexOf(currentMonth) >= 0 && title.indexOf(currentYear) >= 0) {
+    if (title.indexOf(targetMonth) >= 0 && title.indexOf(targetYear) >= 0) {
       parentTabId = tabs[t].getId();
       break;
     }
   }
 
-  // ── Create the new tab via Apps Script addTab() ───────────────────────────
+  // ── Create the new tab ────────────────────────────────────────────────────
   try {
-    var newTab;
-    var props = { title: todayFull };
+    var props = { title: tabTitle };
     if (parentTabId) props.parentTabId = parentTabId;
-    newTab = doc.addTab(props);
+    var newTab = doc.addTab(props);
     return newTab.asDocumentTab().getBody();
   } catch(e) {
     Logger.log('addTab w/ parent failed: ' + e.message);
-    // Retry without parent (still creates the tab, just at top level)
     try {
-      var newTab = doc.addTab({ title: todayFull });
+      var newTab = doc.addTab({ title: tabTitle });
       return newTab.asDocumentTab().getBody();
     } catch(e2) {
       Logger.log('addTab fallback failed: ' + e2.message);
     }
   }
 
-  // ── Last resort: write to main body ───────────────────────────────────────
   return doc.getBody();
 }
 
@@ -107,41 +108,57 @@ function appendToDoc(payloadJson) {
     var data = JSON.parse(payloadJson);
     var tz   = Session.getScriptTimeZone();
 
-    // Get or create today's tab
-    var body = getOrCreateTodayTab(doc);
+    // Get or create the chosen date's tab (today or tomorrow)
+    var body = getOrCreateTodayTab(doc, data.targetDate);
 
-    // ── Page title ────────────────────────────────────────────────────────────
+    var FONT = 'Avenir';
+
+    // ── Page title — bold, italic, underline, Avenir ──────────────────────────
     var titleP = body.appendParagraph('Priorities - Must Complete/Notes');
     titleP.setHeading(DocumentApp.ParagraphHeading.HEADING1);
-    titleP.editAsText().setUnderline(true).setBold(true);
+    titleP.editAsText()
+      .setFontFamily(FONT)
+      .setBold(true)
+      .setItalic(true)
+      .setUnderline(true);
 
     // ── Helper: write one section ─────────────────────────────────────────────
     // A blank paragraph before each section breaks the list context so numbering
-    // resets to "1." for both the header and the items — matching your doc style.
+    // resets to "1." — matching your doc's existing format.
     function writeSection(label, notes) {
       if (!notes || notes.length === 0) return;
 
-      // Spacer paragraph breaks the list so this section starts fresh at 1.
       body.appendParagraph('');
 
-      // Section header — level 0, DIGIT → "1. Label" — bold
+      // Section header — bold + italic + Avenir, level 0 → "1. Label"
       var header = body.appendListItem(label);
       header.setNestingLevel(0);
       header.setGlyphType(DocumentApp.GlyphType.DIGIT);
-      header.editAsText().setBold(true).setItalic(true);
+      header.editAsText()
+        .setFontFamily(FONT)
+        .setBold(true)
+        .setItalic(true);
 
-      // Items — level 1, DIGIT → "   1. item text" (no gap between items)
+      // Items — Avenir only, no bold/italic, level 1 → "   1. item"
       for (var i = 0; i < notes.length; i++) {
         var item = body.appendListItem(notes[i].text);
         item.setNestingLevel(1);
         item.setGlyphType(DocumentApp.GlyphType.DIGIT);
+        item.editAsText()
+          .setFontFamily(FONT)
+          .setBold(false)
+          .setItalic(false);
         if (notes[i].done) item.editAsText().setStrikethrough(true);
 
-        // Sub-detail — level 2, ROMAN_LOWER → "      i. detail"
+        // Sub-detail — Avenir only, level 2 → "      i. detail"
         if (notes[i].detail) {
           var sub = body.appendListItem(notes[i].detail);
           sub.setNestingLevel(2);
           sub.setGlyphType(DocumentApp.GlyphType.ROMAN_LOWER);
+          sub.editAsText()
+            .setFontFamily(FONT)
+            .setBold(false)
+            .setItalic(false);
           if (notes[i].done) sub.editAsText().setStrikethrough(true);
         }
       }
@@ -153,19 +170,26 @@ function appendToDoc(payloadJson) {
       writeSection(sections[s].label, sections[s].notes);
     }
 
-    // ── Notes (live entries) ──────────────────────────────────────────────────
+    // ── Notes (live entries) — bold + italic header, Avenir items ────────────
     var live = data.live || [];
     if (live.length > 0) {
       body.appendParagraph('');
-      var header = body.appendListItem('Notes:');
-      header.setNestingLevel(0);
-      header.setGlyphType(DocumentApp.GlyphType.DIGIT);
-      header.editAsText().setBold(true);
+      var liveHdr = body.appendListItem('Notes:');
+      liveHdr.setNestingLevel(0);
+      liveHdr.setGlyphType(DocumentApp.GlyphType.DIGIT);
+      liveHdr.editAsText()
+        .setFontFamily(FONT)
+        .setBold(true)
+        .setItalic(true);
       for (var i = 0; i < live.length; i++) {
         var timeStr = Utilities.formatDate(new Date(live[i].ts), tz, 'h:mm a');
         var item = body.appendListItem(timeStr + '  ' + live[i].text);
         item.setNestingLevel(1);
         item.setGlyphType(DocumentApp.GlyphType.DIGIT);
+        item.editAsText()
+          .setFontFamily(FONT)
+          .setBold(false)
+          .setItalic(false);
       }
     }
 

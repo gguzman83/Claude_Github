@@ -242,13 +242,36 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 
+<!-- Date Picker Modal -->
+<div class="overlay" id="date-picker-modal" style="display:none" onclick="if(event.target===this)closeDatePicker()">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-hdr">
+      <div>
+        <div style="font-size:16px;font-weight:700">📤 Sync to Google Doc</div>
+        <div style="font-size:12px;color:#64748b;margin-top:2px">Which date should this go under?</div>
+      </div>
+      <button class="ico-btn" onclick="closeDatePicker()" style="font-size:18px;opacity:.7">×</button>
+    </div>
+    <div class="modal-body" style="padding:16px 20px;display:flex;flex-direction:column;gap:10px">
+      <button id="date-today-btn" class="btn btn-outline" style="width:100%;padding:14px;font-size:15px;text-align:left;display:flex;flex-direction:column;gap:2px" onclick="selectSyncDate(0)">
+        <span style="font-weight:700;color:#1e293b" id="label-today"></span>
+        <span style="font-size:11px;color:#94a3b8">Today</span>
+      </button>
+      <button id="date-tomorrow-btn" class="btn btn-outline" style="width:100%;padding:14px;font-size:15px;text-align:left;display:flex;flex-direction:column;gap:2px" onclick="selectSyncDate(1)">
+        <span style="font-weight:700;color:#1e293b" id="label-tomorrow"></span>
+        <span style="font-size:11px;color:#94a3b8">Tomorrow</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Sync Modal -->
 <div class="overlay" id="sync-modal" style="display:none" onclick="if(event.target===this)closeSyncModal()">
   <div class="modal">
     <div class="modal-hdr">
       <div>
         <div style="font-size:16px;font-weight:700">📤 Sync to Google Doc</div>
-        <div style="font-size:12px;color:#64748b;margin-top:2px">This will append today's notes directly to your Daily Tasks doc</div>
+        <div style="font-size:12px;color:#64748b;margin-top:2px" id="sync-modal-date-label">Syncing to today's tab</div>
       </div>
       <button class="ico-btn" onclick="closeSyncModal()" style="font-size:18px;opacity:.7">×</button>
     </div>
@@ -608,8 +631,8 @@ function _buildSyncSections(){
 
 // ── Structured payload sent to Apps Script for proper Google Doc formatting ───
 function buildSyncPayload(){
-  const mapNotes = arr => (arr||[]).map(n=>({text:n.text,done:!!n.done,detail:n.detail||''}));
   return JSON.stringify({
+    targetDate: _syncTargetDate || new Date().toISOString(),
     sections: _buildSyncSections().map(s => ({
       label: s.label,
       notes: s.notes.map(n => ({text:n.text, done:!!n.done, detail:n.detail||''}))
@@ -618,16 +641,51 @@ function buildSyncPayload(){
   });
 }
 
-function openSyncModal(){
-  document.getElementById('sync-text').innerHTML = buildSyncHtml();
-  document.getElementById('sync-modal').style.display='flex';
+// ── Date picker ───────────────────────────────────────────────────────────────
+let _syncTargetDate = null; // ISO string of the chosen date
+
+function _formatDateLabel(offsetDays) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  const days   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
 }
-function closeSyncModal(){document.getElementById('sync-modal').style.display='none';}
+
+function openSyncModal() {
+  // Always show date picker first
+  document.getElementById('label-today').textContent    = _formatDateLabel(0);
+  document.getElementById('label-tomorrow').textContent = _formatDateLabel(1);
+  document.getElementById('date-picker-modal').style.display = 'flex';
+}
+
+function closeDatePicker() {
+  document.getElementById('date-picker-modal').style.display = 'none';
+}
+
+function selectSyncDate(offsetDays) {
+  // Capture chosen date as ISO string for the backend
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  _syncTargetDate = d.toISOString();
+
+  const label = _formatDateLabel(offsetDays);
+  closeDatePicker();
+
+  // Open sync preview modal
+  document.getElementById('sync-modal-date-label').textContent = 'Tab: ' + label;
+  document.getElementById('sync-text').innerHTML = buildSyncHtml();
+  document.getElementById('sync-modal').style.display = 'flex';
+}
+
+function closeSyncModal() { document.getElementById('sync-modal').style.display='none'; }
+
 function copySync(){
   navigator.clipboard.writeText(buildSyncText())
     .then(()=>toast('📋 Copied to clipboard!'));
   closeSyncModal();
 }
+
 function pushToDoc(){
   const btn=document.getElementById('push-btn');
   btn.textContent='Pushing…';btn.disabled=true;
