@@ -137,22 +137,37 @@ Do NOT use markdown tables — Slack doesn't render them. Use plain line-by-line
 ```
 
 **Message 2 — To-Do List**
+
+Each to-do item must have a blank line before the next one — this mirrors the email format and makes each item scannable at a glance. The item title should be bold. Each section header (P1/P2/P3) should have a blank line after it before the first item.
+
 ```
 :white_check_mark: *PRIORITIZED TO-DO LIST*
 ━━━━━━━━━━━━━━━━━━━━━━
 :red_circle: *P1 — Urgent (respond before noon)*
-[N]. [Source] [Title]
+
+[N]. *[Source] [Title]*
+[1-2 sentence context]
+→ [link]
+
+[N]. *[Source] [Title]*
 [1-2 sentence context]
 → [link]
 
 :large_yellow_circle: *P2 — Action Today*
-[N]. [Source] [Title]
+
+[N]. *[Source] [Title]*
+[1-2 sentence context]
+→ [link]
+
+[N]. *[Source] [Title]*
 [1-2 sentence context]
 → [link]
 
 :large_green_circle: *P3 — FYI / No Response Needed*
-[N]. [Source] [Title]
+
+[N]. *[Source] [Title]*
 [1 sentence context]
+→ [link]
 ```
 
 **Message 3 — Starred Emails**
