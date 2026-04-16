@@ -43,7 +43,7 @@ Run two searches:
 ## STEP 2 — Read the CLPSE Spotlight Tracker
 
 Locate `CLPSE Spotlight Tracker.xlsx` — check the workspace folder first
-(`/sessions/admiring-kind-mccarthy/mnt/Claude_ M17HR46WK3/`), then the uploads folder
+(`/sessions/admiring-kind-mccarthy/mnt/Claude_Desktop_MTV/`), then the uploads folder
 (`/sessions/admiring-kind-mccarthy/mnt/uploads/`).
 
 Use Bash to read it and capture the current time in PT:
