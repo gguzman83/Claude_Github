@@ -775,7 +775,11 @@ function loadPinnedNotes() {
       document.getElementById('pinned-loading').style.display = 'none';
       document.getElementById('pinned-grid').style.display = 'grid';
       if (result && result.success) {
-        pinnedCache = result.items;
+        // FIX 1: Strip invisible Unicode chars & trim all section labels
+        pinnedCache = result.items.map(item => ({
+          ...item,
+          section: (item.section || '').replace(/[\u0000-\u001F\u007F-\u009F\uFEFF]/g, '').trim()
+        }));
         renderPinnedSectionTabs();
         renderPinned();
       } else {
@@ -809,10 +813,14 @@ function renderPinnedSectionTabs() {
   const sections = ['all', ...fySections];
   const fyTotal = fySections.reduce((sum, s) => sum + (counts[s] || 0), 0);
 
-  document.getElementById('pinned-section-tabs').innerHTML = sections.map(s => `
-    <button class="type-tab${activePinnedSection === s ? ' active' : ''}" onclick="setPinnedSection('${s.replace(/'/g,"\\'")}')">
-      ${s === 'all' ? '🗂️ All' : s} <strong>${s === 'all' ? fyTotal : (counts[s] || 0)}</strong>
-    </button>`).join('');
+  // FIX 2: Use esc() on section labels to prevent blank/broken buttons
+  document.getElementById('pinned-section-tabs').innerHTML = sections.map(s => {
+    const label = s === 'all' ? '🗂️ All' : esc(s);
+    const count = s === 'all' ? fyTotal : (counts[s] || 0);
+    return `<button class="type-tab${activePinnedSection === s ? ' active' : ''}" onclick="setPinnedSection('${s.replace(/'/g,"\\'")}')">
+      ${label} <strong>${count}</strong>
+    </button>`;
+  }).join('');
 }
 
 function setPinnedSection(s) {
