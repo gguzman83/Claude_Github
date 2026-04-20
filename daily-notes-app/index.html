@@ -1282,6 +1282,9 @@ function handlePasteWithLinks(event, inputId) {
   const s = el.selectionStart, e2 = el.selectionEnd;
   el.value = el.value.substring(0, s) + mdText + el.value.substring(e2);
   el.setSelectionRange(s + mdText.length, s + mdText.length);
+  // oninput doesn't fire after programmatic value changes — trigger resize + preview manually
+  autoResizeTA(el);
+  el.dispatchEvent(new Event('input', {bubbles:true}));
 }
 
 // ─── Link insertion (Cmd+K) ───────────────────────────────────────────────────
