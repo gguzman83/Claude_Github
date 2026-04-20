@@ -465,35 +465,36 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 function linkify(s){
   s = String(s);
   const aStyle = 'color:#6366f1;text-decoration:underline;word-break:break-all';
-  const ph = []; // unified placeholder store
+  const ph = [];
   function hold(html){ const i=ph.length; ph.push(html); return `\x00P${i}\x00`; }
+  function mkLink(u,label){ return `<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="${aStyle}">${label}</a>`; }
 
-  // Step 0: clean up old buggy format where raw <a> HTML got stored as text
-  // Flexible match: URL followed by any attributes then >display text
+  // Step 0: clean up old buggy format — raw <a> HTML leaked into stored text
   s = s.replace(/(https?:\/\/[^\s"<>]+)"[^>]+>([^\n<]+)/g, '[$2]($1)');
 
-  // Step 1: collapse [text]\n(url) — link dialog sometimes inserts across lines
+  // Step 1: collapse [text]\n(url) multi-line → single-line markdown
   s = s.replace(/\[([^\]\n]+)\]\s*\n\s*\((https?:\/\/[^\)]+)\)/g, '[$1]($2)');
 
-  // Links FIRST — bold/italic run after, so **[linked text](url)** nests correctly.
-  // Placeholders use null bytes which survive esc(), enabling multi-pass restore.
-  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (_,t,u)=>
-    hold(`<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="${aStyle}">${esc(t)}</a>`));
+  // Step 2: markdown links → placeholders FIRST so bold/italic can wrap them safely
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (_,t,u)=>hold(mkLink(u,esc(t))));
 
-  // Inline formats (content passed through esc — null-byte placeholders are unaffected)
+  // Step 3: inline formats → placeholders
   s = s.replace(/\*\*([^*]+)\*\*/g,  (_,t)=>hold(`<strong>${esc(t)}</strong>`));
   s = s.replace(/__([^_]+)__/g,       (_,t)=>hold(`<u>${esc(t)}</u>`));
   s = s.replace(/~~([^~]+)~~/g,       (_,t)=>hold(`<s style="color:#94a3b8">${esc(t)}</s>`));
   s = s.replace(/_([^_\n]+)_/g,       (_,t)=>hold(`<em>${esc(t)}</em>`));
 
-  // Escape remaining text, then restore all placeholders — multi-pass handles nesting
+  // Step 4: escape remaining plain text (placeholders survive — esc doesn't touch \x00)
   let r = esc(s);
+
+  // Step 5: bare URLs → placeholders BEFORE final restore.
+  // Excludes \x00 (tokens), angle brackets, quotes, and trailing ) so we don't
+  // grab parentheses that wrap URLs in text like (url).
+  r = r.replace(/(https?:\/\/[^\s&"<>()\x00]+)/g, u=>hold(mkLink(u,u)));
+
+  // Step 6: restore all placeholders — multi-pass unwinds nesting (bold wrapping links, etc.)
   let _prev;
   do { _prev = r; r = r.replace(/\x00P(\d+)\x00/g, (_,i)=>ph[+i]); } while (r !== _prev);
-
-  // Bare URLs (not already linked)
-  r = r.replace(/(https?:\/\/[^\s&"<>]+)/g,
-    `<a href="$1" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="${aStyle}">$1</a>`);
 
   // Bullet lines: lines starting with "- "
   const lines = r.split('\n');
