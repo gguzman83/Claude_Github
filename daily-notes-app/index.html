@@ -467,16 +467,21 @@ function linkify(s){
   const ph = []; // unified placeholder store
   function hold(html){ const i=ph.length; ph.push(html); return `\x00P${i}\x00`; }
 
-  // Collect all inline formats BEFORE escaping (order matters: longest marker first)
+  // Links FIRST — bold/italic run after, so **[linked text](url)** nests correctly.
+  // Placeholders use null bytes which survive esc(), enabling multi-pass restore.
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (_,t,u)=>
+    hold(`<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="${aStyle}">${esc(t)}</a>`));
+
+  // Inline formats (content passed through esc — null-byte placeholders are unaffected)
   s = s.replace(/\*\*([^*]+)\*\*/g,  (_,t)=>hold(`<strong>${esc(t)}</strong>`));
   s = s.replace(/__([^_]+)__/g,       (_,t)=>hold(`<u>${esc(t)}</u>`));
   s = s.replace(/~~([^~]+)~~/g,       (_,t)=>hold(`<s style="color:#94a3b8">${esc(t)}</s>`));
   s = s.replace(/_([^_\n]+)_/g,       (_,t)=>hold(`<em>${esc(t)}</em>`));
-  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (_,t,u)=>
-    hold(`<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="${aStyle}">${esc(t)}</a>`));
 
-  // Escape HTML on remaining text, then restore placeholders
-  let r = esc(s).replace(/\x00P(\d+)\x00/g, (_,i)=>ph[i]);
+  // Escape remaining text, then restore all placeholders — multi-pass handles nesting
+  let r = esc(s);
+  let _prev;
+  do { _prev = r; r = r.replace(/\x00P(\d+)\x00/g, (_,i)=>ph[+i]); } while (r !== _prev);
 
   // Bare URLs (not already linked)
   r = r.replace(/(https?:\/\/[^\s&"<>]+)/g,
