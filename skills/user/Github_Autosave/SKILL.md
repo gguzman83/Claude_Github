@@ -21,7 +21,7 @@ modified in this session and make sure it's saved to both GitHub and the workspa
 
 This skill uses the GitHub REST API with a pre-configured PAT. Set it at the start of every run:
 
-export GITHUB_PAT=YOUR_GITHUB_PAT_HERE
+export GITHUB_PAT=$(cat ~/.github_pat)
 export GITHUB_REPO="gguzman83/Claude_Github"
 export GITHUB_API="https://api.github.com/repos/$GITHUB_REPO/contents"
 
