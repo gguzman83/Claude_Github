@@ -468,9 +468,8 @@ function linkify(s){
   function hold(html){ const i=ph.length; ph.push(html); return `\x00P${i}\x00`; }
 
   // Step 0: clean up old buggy format where raw <a> HTML got stored as text
-  // Pattern: URL" target="_blank" rel="noopener" onclick="..." style="...">display text
-  s = s.replace(/(https?:\/\/[^\s"]+)"\s+target="_blank"\s+rel="noopener"\s+onclick="event\.stopPropagation\(\)"\s+style="[^"]+">([^\n<]+)/g,
-    '[$2]($1)');
+  // Flexible match: URL followed by any attributes then >display text
+  s = s.replace(/(https?:\/\/[^\s"<>]+)"[^>]+>([^\n<]+)/g, '[$2]($1)');
 
   // Step 1: collapse [text]\n(url) — link dialog sometimes inserts across lines
   s = s.replace(/\[([^\]\n]+)\]\s*\n\s*\((https?:\/\/[^\)]+)\)/g, '[$1]($2)');
