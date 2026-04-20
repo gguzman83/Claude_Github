@@ -1,0 +1,426 @@
+// ─── Daily Notes App — Google Apps Script Backend ─────────────────────────────
+// Guillermo's Daily Notes | Techknow Bar MTV + SF
+// Data stored in UserProperties (per Google account, syncs across machines)
+// Writes completed/new entries directly to Daily Tasks FY26 Q2-Q4 doc
+
+const DOC_ID = '1PRS_iUx0ma6JGt_hJGtAU-oqIgMHpnuLNbILpq9346k';
+
+// ─── Serve the web app ────────────────────────────────────────────────────────
+function doGet() {
+  return HtmlService.createHtmlOutputFromFile('index')
+    .setTitle('Daily Notes — Guillermo')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// ─── Load notes (called on app startup) ──────────────────────────────────────
+function loadNotes() {
+  try {
+    const props = PropertiesService.getUserProperties();
+    const notes = props.getProperty('notes');
+    const live  = props.getProperty('live');
+    const date  = props.getProperty('saved_date');
+    if (!notes) return null;
+    return {
+      notes: JSON.parse(notes),
+      live:  JSON.parse(live || '[]'),
+      date:  date
+    };
+  } catch (e) {
+    Logger.log('loadNotes error: ' + e.message);
+    return null;
+  }
+}
+
+// ─── Save notes (called on every change) ─────────────────────────────────────
+function saveNotes(payload) {
+  try {
+    const props = PropertiesService.getUserProperties();
+    props.setProperty('notes',      JSON.stringify(payload.notes));
+    props.setProperty('live',       JSON.stringify(payload.live));
+    props.setProperty('saved_date', payload.date);
+    return { success: true };
+  } catch (e) {
+    Logger.log('saveNotes error: ' + e.message);
+    return { success: false, error: e.message };
+  }
+}
+
+// ─── Create or find today's tab, nested under the current month's tab ─────────
+function getOrCreateTodayTab(doc, targetDateIso) {
+  var tz      = Session.getScriptTimeZone();
+  var date    = targetDateIso ? new Date(targetDateIso) : new Date();
+  var tabTitle  = Utilities.formatDate(date, tz, 'EEEE, MMMM d');
+  var tabShort  = Utilities.formatDate(date, tz, 'EEE, MMMM d');
+
+  function matchesDate(t) { t=(t||'').trim(); return t===tabTitle||t===tabShort; }
+
+  var tabs = doc.getTabs();
+  for (var t = 0; t < tabs.length; t++) {
+    if (matchesDate(tabs[t].getTitle())) return tabs[t].asDocumentTab().getBody();
+    var kids = tabs[t].getChildTabs ? tabs[t].getChildTabs() : [];
+    for (var c = 0; c < kids.length; c++) {
+      if (matchesDate(kids[c].getTitle())) return kids[c].asDocumentTab().getBody();
+    }
+  }
+
+  var targetMonth = Utilities.formatDate(date, tz, 'MMMM');
+  var targetYear  = Utilities.formatDate(date, tz, 'yyyy');
+  var parentTabId = null;
+  for (var t = 0; t < tabs.length; t++) {
+    var title = tabs[t].getTitle();
+    if (title.indexOf(targetMonth) >= 0 && title.indexOf(targetYear) >= 0) {
+      parentTabId = tabs[t].getId();
+      break;
+    }
+  }
+
+  try {
+    var props = { title: tabTitle };
+    if (parentTabId) props.parentTabId = parentTabId;
+    var newTab = doc.addTab(props);
+    return newTab.asDocumentTab().getBody();
+  } catch(e) {
+    Logger.log('addTab w/ parent failed: ' + e.message);
+    try {
+      var newTab = doc.addTab({ title: tabTitle });
+      return newTab.asDocumentTab().getBody();
+    } catch(e2) {
+      Logger.log('addTab fallback failed: ' + e2.message);
+    }
+  }
+
+  return doc.getBody();
+}
+
+// ─── Append daily summary to Google Doc ───────────────────────────────────────
+function appendToDoc(payloadJson) {
+  try {
+    var doc  = DocumentApp.openById(DOC_ID);
+    var data = JSON.parse(payloadJson);
+    var tz   = Session.getScriptTimeZone();
+
+    var body = getOrCreateTodayTab(doc, data.targetDate);
+    body.clear();
+
+    var FONT = 'Avenir';
+
+    function writeSection(label, notes) {
+      if (!notes || notes.length === 0) return;
+      body.appendParagraph('');
+      var header = body.appendListItem(label);
+      header.setNestingLevel(0);
+      header.setGlyphType(DocumentApp.GlyphType.DIGIT);
+      header.editAsText().setFontFamily(FONT).setBold(true).setItalic(false).setUnderline(false);
+
+      for (var i = 0; i < notes.length; i++) {
+        var item = body.appendListItem(notes[i].text);
+        item.setNestingLevel(1);
+        item.setGlyphType(DocumentApp.GlyphType.DIGIT);
+        item.editAsText().setFontFamily(FONT).setBold(false).setItalic(false);
+        if (notes[i].done) item.editAsText().setStrikethrough(true);
+
+        if (notes[i].detail) {
+          var detailLines = notes[i].detail.split('\n');
+          for (var d = 0; d < detailLines.length; d++) {
+            var line = detailLines[d].trim();
+            if (!line) continue;
+            var sub = body.appendListItem(line);
+            sub.setNestingLevel(2);
+            sub.setGlyphType(DocumentApp.GlyphType.ROMAN_LOWER);
+            sub.editAsText().setFontFamily(FONT).setBold(false).setItalic(false);
+            if (notes[i].done) sub.editAsText().setStrikethrough(true);
+          }
+        }
+      }
+    }
+
+    var sections = data.sections || [];
+    for (var s = 0; s < sections.length; s++) {
+      writeSection(sections[s].label, sections[s].notes);
+    }
+
+    var live = data.live || [];
+    if (live.length > 0) {
+      body.appendParagraph('');
+      var liveHdr = body.appendListItem('Notes:');
+      liveHdr.setNestingLevel(0);
+      liveHdr.setGlyphType(DocumentApp.GlyphType.DIGIT);
+      liveHdr.editAsText().setFontFamily(FONT).setBold(true).setItalic(false).setUnderline(false);
+      for (var i = 0; i < live.length; i++) {
+        var timeStr = Utilities.formatDate(new Date(live[i].ts), tz, 'h:mm a');
+        var item = body.appendListItem(timeStr + '  ' + live[i].text);
+        item.setNestingLevel(1);
+        item.setGlyphType(DocumentApp.GlyphType.DIGIT);
+        item.editAsText().setFontFamily(FONT).setBold(false).setItalic(false);
+      }
+    }
+
+    doc.saveAndClose();
+    return { success: true };
+  } catch (e) {
+    Logger.log('appendToDoc error: ' + e.message);
+    return { success: false, error: e.message };
+  }
+}
+
+// ─── Log a single completed item to Google Doc ────────────────────────────────
+function logCompletionToDoc(noteText, category, timestamp) {
+  try {
+    const doc  = DocumentApp.openById(DOC_ID);
+    const body = doc.getBody();
+    const time = Utilities.formatDate(new Date(timestamp), Session.getScriptTimeZone(), 'h:mm a');
+    const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'M/d');
+    const catEmoji = { incidents:'🔥', tasks:'✅', projects:'🏗️', meetings:'📅' };
+    const line = `${catEmoji[category]||'✅'} [${today} ${time}] COMPLETED: ${noteText}`;
+    body.appendParagraph(line);
+    doc.saveAndClose();
+    return { success: true };
+  } catch (e) {
+    Logger.log('logCompletion error: ' + e.message);
+    return { success: false, error: e.message };
+  }
+}
+
+// ─── Get PINNED notes from Google Doc ────────────────────────────────────────
+function getPinnedNotes() {
+  try {
+    const doc  = DocumentApp.openById(DOC_ID);
+    const tabs = doc.getTabs();
+
+    // ── Find the PINNED Info tab ──────────────────────────────────────────────
+    var pinnedTab = null;
+    for (var t = 0; t < tabs.length; t++) {
+      if (tabs[t].getTitle().toUpperCase().includes('PINNED')) {
+        pinnedTab = tabs[t]; break;
+      }
+      var kids = tabs[t].getChildTabs ? tabs[t].getChildTabs() : [];
+      for (var c = 0; c < kids.length; c++) {
+        if (kids[c].getTitle().toUpperCase().includes('PINNED')) {
+          pinnedTab = kids[c]; break;
+        }
+      }
+      if (pinnedTab) break;
+    }
+
+    if (!pinnedTab) return { success: false, error: 'PINNED Info tab not found', items: [] };
+    Logger.log('Found PINNED tab: ' + pinnedTab.getTitle());
+
+    // ── First try: read FY child tabs (FY26, FY25, FY24) ─────────────────────
+    var fyChildTabs = [];
+    try { fyChildTabs = pinnedTab.getChildTabs() || []; } catch(e) { Logger.log('getChildTabs error: ' + e.message); }
+    Logger.log('Child tab count: ' + fyChildTabs.length);
+
+    var allItems = [];
+    for (var ct = 0; ct < fyChildTabs.length; ct++) {
+      try {
+        var fyTab   = fyChildTabs[ct];
+        var fyLabel = fyTab.getTitle().replace(/[\u0000-\u001F\u007F-\u009F\uFEFF]/g,'').trim();
+        Logger.log('Reading child tab: "' + fyLabel + '"');
+        var childBody = fyTab.asDocumentTab().getBody();
+        Logger.log('  children: ' + childBody.getNumChildren());
+        if (childBody.getNumChildren() > 1) {
+          var parsed = _parsePinnedBody(childBody, fyLabel.match(/FY\d+/i) ? fyLabel : null);
+          Logger.log('  items: ' + parsed.length);
+          allItems = allItems.concat(parsed);
+        }
+      } catch(e) { Logger.log('child tab read error: ' + e.message); }
+    }
+
+    // ── Fallback: read the PINNED Info parent body ────────────────────────────
+    // archiveNoteToDoc writes HERE, so if child tabs are empty all content is here.
+    // Detect FY sections from headings, bold paragraphs, or plain "FYxx" lines.
+    if (allItems.length === 0) {
+      Logger.log('Child tabs empty — falling back to parent body');
+      var parentBody = pinnedTab.asDocumentTab().getBody();
+      Logger.log('Parent body children: ' + parentBody.getNumChildren());
+      allItems = _parsePinnedBodyWithFY(parentBody);
+      Logger.log('Fallback items: ' + allItems.length);
+    }
+
+    Logger.log('getPinnedNotes total: ' + allItems.length);
+    return { success: true, items: allItems };
+  } catch (e) {
+    Logger.log('getPinnedNotes error: ' + e.message);
+    return { success: false, error: e.message, items: [] };
+  }
+}
+
+// ── Parse a body where the tab title IS the FY section label ─────────────────
+function _parsePinnedBody(body, sectionLabel) {
+  var items = [], n = body.getNumChildren(), section = sectionLabel || '';
+  for (var i = 0; i < n; i++) {
+    var child = body.getChild(i);
+    var type  = child.getType();
+    var raw = '', isDone = false, nestLevel = 0;
+
+    if (type === DocumentApp.ElementType.PARAGRAPH) {
+      var para = child.asParagraph(); raw = para.getText().trim();
+      if (para.getHeading() !== DocumentApp.ParagraphHeading.NORMAL) continue;
+      try { isDone = para.editAsText().isStrikethrough(0); } catch(e) {}
+    } else if (type === DocumentApp.ElementType.LIST_ITEM) {
+      var li = child.asListItem(); raw = li.getText().trim();
+      nestLevel = li.getNestingLevel();
+      try { isDone = li.editAsText().isStrikethrough(0); } catch(e) {}
+    } else { continue; }
+
+    if (!raw) continue;
+    var result = _extractItem(raw, isDone, nestLevel, section, type, items);
+    if (result) items.push(result);
+  }
+  return items;
+}
+
+// ── Parse the PINNED Info parent body — detect FY sections inline ─────────────
+// Catches FY markers whether they are: formal Heading style, bold-only
+// paragraphs, or plain short lines matching /^FY\d+$/i
+function _parsePinnedBodyWithFY(body) {
+  var items = [], n = body.getNumChildren();
+  var section = 'FY26'; // sensible default
+
+  for (var i = 0; i < n; i++) {
+    var child = body.getChild(i);
+    var type  = child.getType();
+    var raw = '', isDone = false, nestLevel = 0, isHeading = false, isBold = false;
+
+    if (type === DocumentApp.ElementType.PARAGRAPH) {
+      var para = child.asParagraph(); raw = para.getText().trim();
+      isHeading = para.getHeading() !== DocumentApp.ParagraphHeading.NORMAL;
+      try { isBold = para.editAsText().isBold(0); } catch(e) {}
+      try { isDone = para.editAsText().isStrikethrough(0); } catch(e) {}
+    } else if (type === DocumentApp.ElementType.LIST_ITEM) {
+      var li = child.asListItem(); raw = li.getText().trim();
+      nestLevel = li.getNestingLevel();
+      try { isDone = li.editAsText().isStrikethrough(0); } catch(e) {}
+    } else { continue; }
+
+    if (!raw) continue;
+
+    // Detect FY section markers: heading, bold, or plain "FYxx" line
+    var cleaned = raw.replace(/[\u0000-\u001F\u007F-\u009F\uFEFF]/g,'').trim();
+    var fyMatch = cleaned.match(/^(FY\d+)$/i);
+    if (fyMatch && (isHeading || isBold || type === DocumentApp.ElementType.PARAGRAPH)) {
+      section = fyMatch[1].toUpperCase();
+      Logger.log('FY section detected: ' + section);
+      continue;
+    }
+    if (isHeading) continue; // skip non-FY headings
+
+    var result = _extractItem(raw, isDone, nestLevel, section, type, items);
+    if (result) items.push(result);
+  }
+  return items;
+}
+
+// ── Shared item extractor ─────────────────────────────────────────────────────
+function _extractItem(raw, isDone, nestLevel, section, type, items) {
+  var noteDate = '', m;
+  if ((m = raw.match(/\[Archived\s+([^\]]+)\]/i)))                    noteDate = m[1].trim();
+  if (!noteDate && (m = raw.match(/\((?:Added|Pinned)\s+([^)]+)\)/i))) noteDate = m[1].trim();
+  if (!noteDate && (m = raw.match(/\bAdded\s+(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)/i))) noteDate = 'Added ' + m[1];
+  if (!noteDate && (m = raw.match(/\(\s*(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\s*\)\s*$/))) noteDate = m[1];
+  if (!noteDate && (m = raw.match(/[-–—]\s*(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\s*$/)))   noteDate = m[1];
+
+  var clean = raw
+    .replace(/📌\s*/g,'').replace(/✅\s*/g,'')
+    .replace(/\[Archived[^\]]*\]\s*/gi,'')
+    .replace(/\s*\((?:Added|Pinned)\s+[^)]+\)/gi,'')
+    .replace(/~~/g,'').replace(/\*\*/g,'')
+    .replace(/^\s*[-•*]\s*/,'')
+    .replace(/\[\s*[xX]\s*\]\s*/,'').replace(/\[\s*\]\s*/,'')
+    .trim();
+
+  if (clean.length < 2) return null;
+
+  isDone = isDone
+         || raw.indexOf('[x]') >= 0 || raw.indexOf('[X]') >= 0
+         || (raw.indexOf('~~') === 0 && raw.lastIndexOf('~~') > 1);
+
+  if (type === DocumentApp.ElementType.LIST_ITEM && nestLevel > 0 && items.length > 0) {
+    var last = items[items.length - 1];
+    if (!last.detail) last.detail = [];
+    last.detail.push(clean);
+    return null;
+  }
+
+  return { text: clean, done: isDone, section: section, date: noteDate, detail: [] };
+}
+
+// ─── Archive a note to the PINNED Info tab ────────────────────────────────────
+function archiveNoteToDoc(noteText, noteDetail, category, timestamp) {
+  try {
+    const doc  = DocumentApp.openById(DOC_ID);
+    const date = Utilities.formatDate(new Date(timestamp), Session.getScriptTimeZone(), 'MMMM d, yyyy');
+    const mainText = noteText + '  (Added ' + date + ')';
+
+    var pinnedBody = null;
+    try {
+      var tabs = doc.getTabs();
+      for (var t = 0; t < tabs.length; t++) {
+        if (tabs[t].getTitle().toUpperCase().includes('PINNED')) {
+          pinnedBody = tabs[t].asDocumentTab().getBody(); break;
+        }
+        var children = tabs[t].getChildTabs ? tabs[t].getChildTabs() : [];
+        for (var c = 0; c < children.length; c++) {
+          if (children[c].getTitle().toUpperCase().includes('PINNED')) {
+            pinnedBody = children[c].asDocumentTab().getBody(); break;
+          }
+        }
+        if (pinnedBody) break;
+      }
+    } catch (tabErr) {
+      Logger.log('archiveNoteToDoc getTabs fallback: ' + tabErr.message);
+    }
+
+    if (!pinnedBody) pinnedBody = doc.getBody();
+
+    var insertAfterIdx = -1;
+    var n = pinnedBody.getNumChildren();
+    for (var i = 0; i < n; i++) {
+      var el = pinnedBody.getChild(i);
+      if (el.getType() === DocumentApp.ElementType.PARAGRAPH) {
+        var txt = el.asParagraph().getText();
+        if (txt.indexOf('PINNED') >= 0 &&
+           (txt.indexOf('remember') >= 0 || txt.indexOf('completed') >= 0)) {
+          insertAfterIdx = i; break;
+        }
+      }
+    }
+
+    var insertAt = insertAfterIdx >= 0 ? insertAfterIdx + 1 : 1;
+
+    if (noteDetail) {
+      var subItem = pinnedBody.insertListItem(insertAt, noteDetail);
+      subItem.setNestingLevel(1);
+      subItem.setGlyphType(DocumentApp.GlyphType.HOLLOW_SQUARE);
+    }
+
+    var mainItem = pinnedBody.insertListItem(insertAt, mainText);
+    mainItem.setNestingLevel(0);
+    mainItem.setGlyphType(DocumentApp.GlyphType.HOLLOW_SQUARE);
+
+    doc.saveAndClose();
+    return { success: true };
+  } catch (e) {
+    Logger.log('archiveNoteToDoc error: ' + e.message);
+    return { success: false, error: e.message };
+  }
+}
+
+// ─── Log a new note to Google Doc ─────────────────────────────────────────────
+function logNewNoteToDoc(noteText, category, timestamp) {
+  try {
+    const doc  = DocumentApp.openById(DOC_ID);
+    const body = doc.getBody();
+    const time = Utilities.formatDate(new Date(timestamp), Session.getScriptTimeZone(), 'h:mm a');
+    const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'M/d');
+    const catEmoji = { incidents:'🔥', tasks:'✅', projects:'🏗️', meetings:'📅' };
+    const line = `${catEmoji[category]||'📝'} [${today} ${time}] NEW: ${noteText}`;
+    body.appendParagraph(line);
+    doc.saveAndClose();
+    return { success: true };
+  } catch (e) {
+    Logger.log('logNewNote error: ' + e.message);
+    return { success: false, error: e.message };
+  }
+}
