@@ -198,6 +198,8 @@ function appendToDoc(payloadJson) {
             .setBold(false)
             .setItalic(false);
         }
+        item.setSpacingBefore(4);
+        item.setSpacingAfter(4);
         if (notes[i].done) item.editAsText().setStrikethrough(true);
 
         // Sub-details — one sub-bullet per line, level 2 → "      i. detail"
@@ -215,6 +217,8 @@ function appendToDoc(payloadJson) {
                 .setBold(false)
                 .setItalic(false);
             }
+            sub.setSpacingBefore(2);
+            sub.setSpacingAfter(2);
             if (notes[i].done) sub.editAsText().setStrikethrough(true);
           }
         }
@@ -251,6 +255,8 @@ function appendToDoc(payloadJson) {
             .setBold(false)
             .setItalic(false);
         }
+        item.setSpacingBefore(4);
+        item.setSpacingAfter(4);
       }
     }
 
