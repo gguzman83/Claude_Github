@@ -116,6 +116,46 @@ function appendToDoc(payloadJson) {
 
     var FONT = 'Avenir';
 
+    // ── Helper: apply [text](url) markdown as real Google Doc hyperlinks ─────
+    // Takes a ListItem or Paragraph that was just created with raw markdown text,
+    // replaces its content with plain text, then applies setLinkUrl() for each link.
+    // Returns true if links were found and applied, false if plain text only.
+    function applyMarkdownLinks(item, rawText, font) {
+      var linkRe = /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g;
+      var parts = [];
+      var lastEnd = 0;
+      var match;
+      linkRe.lastIndex = 0;
+      while ((match = linkRe.exec(rawText)) !== null) {
+        if (match.index > lastEnd) {
+          parts.push({ text: rawText.substring(lastEnd, match.index), url: null });
+        }
+        parts.push({ text: match[1], url: match[2] });
+        lastEnd = match.index + match[0].length;
+      }
+      if (lastEnd < rawText.length) {
+        parts.push({ text: rawText.substring(lastEnd), url: null });
+      }
+      // No links found — caller handles font/style normally
+      var hasLinks = parts.some(function(p){ return p.url; });
+      if (!hasLinks) return false;
+      // Replace item text with plain version and apply links
+      var plainText = parts.map(function(p){ return p.text; }).join('');
+      var textEl = item.editAsText();
+      textEl.setText(plainText);
+      textEl.setFontFamily(font).setBold(false).setItalic(false).setUnderline(false);
+      var pos = 0;
+      for (var i = 0; i < parts.length; i++) {
+        if (parts[i].url) {
+          textEl.setLinkUrl(pos, pos + parts[i].text.length - 1, parts[i].url);
+          textEl.setForegroundColor(pos, pos + parts[i].text.length - 1, '#1155CC');
+          textEl.setUnderline(pos, pos + parts[i].text.length - 1, true);
+        }
+        pos += parts[i].text.length;
+      }
+      return true;
+    }
+
     // ── Helper: write one section ─────────────────────────────────────────────
     // A blank paragraph before each section breaks the list context so numbering
     // resets to "1." — matching your doc's existing format.
@@ -139,10 +179,12 @@ function appendToDoc(payloadJson) {
         var item = body.appendListItem(notes[i].text);
         item.setNestingLevel(1);
         item.setGlyphType(DocumentApp.GlyphType.DIGIT);
-        item.editAsText()
-          .setFontFamily(FONT)
-          .setBold(false)
-          .setItalic(false);
+        if (!applyMarkdownLinks(item, notes[i].text, FONT)) {
+          item.editAsText()
+            .setFontFamily(FONT)
+            .setBold(false)
+            .setItalic(false);
+        }
         if (notes[i].done) item.editAsText().setStrikethrough(true);
 
         // Sub-details — one sub-bullet per line, level 2 → "      i. detail"
@@ -154,10 +196,12 @@ function appendToDoc(payloadJson) {
             var sub = body.appendListItem(line);
             sub.setNestingLevel(2);
             sub.setGlyphType(DocumentApp.GlyphType.ROMAN_LOWER);
-            sub.editAsText()
-              .setFontFamily(FONT)
-              .setBold(false)
-              .setItalic(false);
+            if (!applyMarkdownLinks(sub, line, FONT)) {
+              sub.editAsText()
+                .setFontFamily(FONT)
+                .setBold(false)
+                .setItalic(false);
+            }
             if (notes[i].done) sub.editAsText().setStrikethrough(true);
           }
         }
@@ -184,13 +228,16 @@ function appendToDoc(payloadJson) {
         .setUnderline(false);
       for (var i = 0; i < live.length; i++) {
         var timeStr = Utilities.formatDate(new Date(live[i].ts), tz, 'h:mm a');
-        var item = body.appendListItem(timeStr + '  ' + live[i].text);
+        var fullText = timeStr + '  ' + live[i].text;
+        var item = body.appendListItem(fullText);
         item.setNestingLevel(1);
         item.setGlyphType(DocumentApp.GlyphType.DIGIT);
-        item.editAsText()
-          .setFontFamily(FONT)
-          .setBold(false)
-          .setItalic(false);
+        if (!applyMarkdownLinks(item, fullText, FONT)) {
+          item.editAsText()
+            .setFontFamily(FONT)
+            .setBold(false)
+            .setItalic(false);
+        }
       }
     }
 
