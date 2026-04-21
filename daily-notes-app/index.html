@@ -41,7 +41,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .card-title{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700}
 .badges{display:flex;gap:5px;align-items:center}
 .badge{font-size:10px;padding:2px 8px;border-radius:99px;font-weight:700}
-.card-body{padding:10px;min-height:100px;max-height:300px;overflow-y:auto}
+.card-body{padding:10px;min-height:100px}
 .empty{color:#cbd5e1;font-size:12px;text-align:center;padding:30px 0}
 /* Note */
 .note{padding:9px 11px;background:#fafafa;border-radius:8px;border:1px solid #f1f5f9;margin-bottom:7px;transition:all .15s}
@@ -430,6 +430,8 @@ document.addEventListener('keydown', function(e) {
 });
 // Collapse state for all sections (toggle on header click)
 let collapsed = { incidents: false, tasks: false, projects: false, clpse: false, splitrole: false, personal: false };
+let showAll = { incidents: false, tasks: false, projects: false, clpse: false, splitrole: false, personal: false };
+const NOTES_LIMIT = 10;
 
 function setIncidentsVisible(visible) {
   const row = document.getElementById('incidents-row');
@@ -596,7 +598,10 @@ function renderCat(cat){
   }
   el.style.cursor='';
   el.onclick=null;
-  el.innerHTML=list.map(n=>{
+  const isExpanded = showAll[cat];
+  const visible = isExpanded ? list : list.slice(0, NOTES_LIMIT);
+  const hiddenCount = list.length - NOTES_LIMIT;
+  el.innerHTML=visible.map(n=>{
     const isEd=editingId===n.id;
     return`<div class="note${n.done?' done':''}" id="note-${n.id}"
       ${!isEd?`onclick="startEdit('${cat}','${n.id}')"`:''}
@@ -644,6 +649,24 @@ function renderCat(cat){
       </div>`:''}
     </div>`;
   }).join('');
+  // Show more / show less toggle
+  if(!isExpanded && hiddenCount > 0){
+    el.innerHTML += `<div style="text-align:center;padding:8px 0 4px">
+      <button onclick="showAll['${cat}']=true;renderCat('${cat}')"
+        style="background:none;border:none;cursor:pointer;font-size:12px;color:#6366f1;font-weight:600;padding:4px 10px;border-radius:6px;transition:background .15s"
+        onmouseover="this.style.background='#ede9fe'" onmouseout="this.style.background='none'">
+        ▾ Show ${hiddenCount} more
+      </button>
+    </div>`;
+  } else if(isExpanded && list.length > NOTES_LIMIT){
+    el.innerHTML += `<div style="text-align:center;padding:8px 0 4px">
+      <button onclick="showAll['${cat}']=false;renderCat('${cat}')"
+        style="background:none;border:none;cursor:pointer;font-size:12px;color:#94a3b8;font-weight:600;padding:4px 10px;border-radius:6px;transition:background .15s"
+        onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'">
+        ▴ Show less
+      </button>
+    </div>`;
+  }
 }
 
 function renderLive(){
