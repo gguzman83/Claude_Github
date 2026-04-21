@@ -842,11 +842,11 @@ function buildSyncHtml(){
     html += `<div style="margin-bottom:14px">
       <div style="font-weight:700;margin-bottom:4px">1. ${esc(s.label)}</div>`;
     s.notes.forEach((n, i) => {
-      const txt = n.done ? `<s style="color:#94a3b8">${esc(n.text)}</s>` : esc(n.text);
+      const txt = n.done ? `<s style="color:#94a3b8">${linkify(n.text)}</s>` : linkify(n.text);
       html += `<div style="padding-left:22px">${i+1}. ${txt}</div>`;
       if (n.detail) {
         n.detail.split('\n').filter(l=>l.trim()).forEach(dl => {
-          html += `<div style="padding-left:44px;color:#64748b">i. ${esc(dl)}</div>`;
+          html += `<div style="padding-left:44px;color:#64748b">i. ${linkify(dl)}</div>`;
         });
       }
     });
@@ -855,7 +855,7 @@ function buildSyncHtml(){
   if (state.live && state.live.length > 0) {
     html += `<div><div style="font-weight:700;margin-bottom:4px">1. Notes:</div>`;
     state.live.forEach((e,i) => {
-      html += `<div style="padding-left:22px">${i+1}. ${esc(fmtT(e.ts))}  ${esc(e.text)}</div>`;
+      html += `<div style="padding-left:22px">${i+1}. ${esc(fmtT(e.ts))}  ${linkify(e.text)}</div>`;
     });
     html += `</div>`;
   }
