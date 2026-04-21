@@ -116,40 +116,53 @@ function appendToDoc(payloadJson) {
 
     var FONT = 'Avenir';
 
-    // ── Helper: apply [text](url) markdown as real Google Doc hyperlinks ─────
-    // Takes a ListItem or Paragraph that was just created with raw markdown text,
-    // replaces its content with plain text, then applies setLinkUrl() for each link.
-    // Returns true if links were found and applied, false if plain text only.
-    function applyMarkdownLinks(item, rawText, font) {
-      var linkRe = /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g;
+    // ── Helper: apply markdown formatting (bold + links) to a Google Doc element ─
+    // Handles **bold** and [text](url) — strips markdown, sets plain text,
+    // then applies bold/link/color styling at the correct character positions.
+    // Returns true if any formatting was found and applied, false if plain text only.
+    function applyMarkdownFormatting(item, rawText, font) {
+      var combinedRe = /\*\*([^*]+)\*\*|\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g;
       var parts = [];
       var lastEnd = 0;
       var match;
-      linkRe.lastIndex = 0;
-      while ((match = linkRe.exec(rawText)) !== null) {
+      var hasFormatting = false;
+      combinedRe.lastIndex = 0;
+      while ((match = combinedRe.exec(rawText)) !== null) {
         if (match.index > lastEnd) {
-          parts.push({ text: rawText.substring(lastEnd, match.index), url: null });
+          parts.push({ text: rawText.substring(lastEnd, match.index), bold: false, url: null });
         }
-        parts.push({ text: match[1], url: match[2] });
+        if (match[1] !== undefined) {
+          // **bold**
+          parts.push({ text: match[1], bold: true, url: null });
+        } else {
+          // [text](url)
+          parts.push({ text: match[2], bold: false, url: match[3] });
+        }
+        hasFormatting = true;
         lastEnd = match.index + match[0].length;
       }
       if (lastEnd < rawText.length) {
-        parts.push({ text: rawText.substring(lastEnd), url: null });
+        parts.push({ text: rawText.substring(lastEnd), bold: false, url: null });
       }
-      // No links found — caller handles font/style normally
-      var hasLinks = parts.some(function(p){ return p.url; });
-      if (!hasLinks) return false;
-      // Replace item text with plain version and apply links
+      if (!hasFormatting) return false;
+      // Set plain text and apply per-segment formatting
       var plainText = parts.map(function(p){ return p.text; }).join('');
       var textEl = item.editAsText();
       textEl.setText(plainText);
-      textEl.setFontFamily(font).setBold(false).setItalic(false).setUnderline(false);
+      textEl.setFontFamily(font);
+      textEl.setBold(false);
+      textEl.setItalic(false);
+      textEl.setUnderline(false);
       var pos = 0;
       for (var i = 0; i < parts.length; i++) {
+        var end = pos + parts[i].text.length - 1;
+        if (parts[i].bold) {
+          textEl.setBold(pos, end, true);
+        }
         if (parts[i].url) {
-          textEl.setLinkUrl(pos, pos + parts[i].text.length - 1, parts[i].url);
-          textEl.setForegroundColor(pos, pos + parts[i].text.length - 1, '#1155CC');
-          textEl.setUnderline(pos, pos + parts[i].text.length - 1, true);
+          textEl.setLinkUrl(pos, end, parts[i].url);
+          textEl.setForegroundColor(pos, end, '#1155CC');
+          textEl.setUnderline(pos, end, true);
         }
         pos += parts[i].text.length;
       }
@@ -168,18 +181,18 @@ function appendToDoc(payloadJson) {
       var header = body.appendListItem(label);
       header.setNestingLevel(0);
       header.setGlyphType(DocumentApp.GlyphType.DIGIT);
-      header.editAsText()
-        .setFontFamily(FONT)
-        .setBold(true)
-        .setItalic(false)
-        .setUnderline(false);
+      var headerText = header.editAsText();
+      headerText.setFontFamily(FONT);
+      headerText.setBold(true);
+      headerText.setItalic(false);
+      headerText.setUnderline(false);
 
       // Items — Avenir only, no bold/italic, level 1 → "   1. item"
       for (var i = 0; i < notes.length; i++) {
         var item = body.appendListItem(notes[i].text);
         item.setNestingLevel(1);
         item.setGlyphType(DocumentApp.GlyphType.DIGIT);
-        if (!applyMarkdownLinks(item, notes[i].text, FONT)) {
+        if (!applyMarkdownFormatting(item, notes[i].text, FONT)) {
           item.editAsText()
             .setFontFamily(FONT)
             .setBold(false)
@@ -196,7 +209,7 @@ function appendToDoc(payloadJson) {
             var sub = body.appendListItem(line);
             sub.setNestingLevel(2);
             sub.setGlyphType(DocumentApp.GlyphType.ROMAN_LOWER);
-            if (!applyMarkdownLinks(sub, line, FONT)) {
+            if (!applyMarkdownFormatting(sub, line, FONT)) {
               sub.editAsText()
                 .setFontFamily(FONT)
                 .setBold(false)
@@ -221,18 +234,18 @@ function appendToDoc(payloadJson) {
       var liveHdr = body.appendListItem('Notes:');
       liveHdr.setNestingLevel(0);
       liveHdr.setGlyphType(DocumentApp.GlyphType.DIGIT);
-      liveHdr.editAsText()
-        .setFontFamily(FONT)
-        .setBold(true)
-        .setItalic(false)
-        .setUnderline(false);
+      var liveHdrText = liveHdr.editAsText();
+      liveHdrText.setFontFamily(FONT);
+      liveHdrText.setBold(true);
+      liveHdrText.setItalic(false);
+      liveHdrText.setUnderline(false);
       for (var i = 0; i < live.length; i++) {
         var timeStr = Utilities.formatDate(new Date(live[i].ts), tz, 'h:mm a');
         var fullText = timeStr + '  ' + live[i].text;
         var item = body.appendListItem(fullText);
         item.setNestingLevel(1);
         item.setGlyphType(DocumentApp.GlyphType.DIGIT);
-        if (!applyMarkdownLinks(item, fullText, FONT)) {
+        if (!applyMarkdownFormatting(item, fullText, FONT)) {
           item.editAsText()
             .setFontFamily(FONT)
             .setBold(false)
