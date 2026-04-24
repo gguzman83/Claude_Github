@@ -50,25 +50,41 @@ function saveNotes(payload) {
 // targetDateIso — ISO date string from the frontend (today or tomorrow).
 // Defaults to now if omitted.
 function getOrCreateTodayTab(doc, targetDateIso) {
-  var tz      = Session.getScriptTimeZone();
-  var date    = targetDateIso ? new Date(targetDateIso) : new Date();
-  // "Tuesday, April 14" — matches the format shown in the doc sidebar
-  var tabTitle  = Utilities.formatDate(date, tz, 'EEEE, MMMM d');
-  var tabShort  = Utilities.formatDate(date, tz, 'EEE, MMMM d');
+  var tz   = Session.getScriptTimeZone();
+  var date = targetDateIso ? new Date(targetDateIso) : new Date();
 
-  function matchesDate(t) { t=(t||'').trim(); return t===tabTitle||t===tabShort; }
+  // Three formats to match — full day name, short day name, and day-agnostic.
+  // The day-agnostic "MMMM d" fallback handles timezone drift where the browser
+  // sends UTC and the weekday shifts by one vs. the script's local timezone.
+  var tabFull  = Utilities.formatDate(date, tz, 'EEEE, MMMM d');  // "Thursday, April 23"
+  var tabShort = Utilities.formatDate(date, tz, 'EEE, MMMM d');   // "Thu, April 23"
+  var monthDay = Utilities.formatDate(date, tz, 'MMMM d');        // "April 23" — day-agnostic
+
+  function matchesDate(t) {
+    t = (t||'').trim();
+    if (t === tabFull || t === tabShort) return true;
+    // Fuzzy: tab contains "April 23" regardless of weekday prefix
+    if (t.indexOf(monthDay) >= 0) return true;
+    return false;
+  }
+
+  function findTab(tabList) {
+    for (var t = 0; t < tabList.length; t++) {
+      if (matchesDate(tabList[t].getTitle())) return tabList[t].asDocumentTab().getBody();
+      var kids = tabList[t].getChildTabs ? tabList[t].getChildTabs() : [];
+      for (var c = 0; c < kids.length; c++) {
+        if (matchesDate(kids[c].getTitle())) return kids[c].asDocumentTab().getBody();
+      }
+    }
+    return null;
+  }
 
   // ── Check if this date's tab already exists ───────────────────────────────
   var tabs = doc.getTabs();
-  for (var t = 0; t < tabs.length; t++) {
-    if (matchesDate(tabs[t].getTitle())) return tabs[t].asDocumentTab().getBody();
-    var kids = tabs[t].getChildTabs ? tabs[t].getChildTabs() : [];
-    for (var c = 0; c < kids.length; c++) {
-      if (matchesDate(kids[c].getTitle())) return kids[c].asDocumentTab().getBody();
-    }
-  }
+  var existing = findTab(tabs);
+  if (existing) return existing;
 
-  // ── Find the month's parent tab (e.g. "April 2026 Q4") ───────────────────
+  // ── Find the month's parent tab (e.g. "April 2026 Q4", "May 2026 Q1") ────
   var targetMonth = Utilities.formatDate(date, tz, 'MMMM');
   var targetYear  = Utilities.formatDate(date, tz, 'yyyy');
   var parentTabId = null;
@@ -80,23 +96,30 @@ function getOrCreateTodayTab(doc, targetDateIso) {
     }
   }
 
-  // ── Create the new tab ────────────────────────────────────────────────────
+  // ── Create the new tab — don't trust the returned reference, do a fresh lookup ──
+  // (getBody() on the freshly-returned tab object can fail; re-fetching is reliable)
   try {
-    var props = { title: tabTitle };
+    var props = { title: tabFull };
     if (parentTabId) props.parentTabId = parentTabId;
-    var newTab = doc.addTab(props);
-    return newTab.asDocumentTab().getBody();
+    doc.addTab(props);
   } catch(e) {
     Logger.log('addTab w/ parent failed: ' + e.message);
     try {
-      var newTab = doc.addTab({ title: tabTitle });
-      return newTab.asDocumentTab().getBody();
+      doc.addTab({ title: tabFull });
     } catch(e2) {
       Logger.log('addTab fallback failed: ' + e2.message);
+      return null;
     }
   }
 
-  return doc.getBody();
+  // Fresh lookup after creation
+  var freshTabs = doc.getTabs();
+  var created = findTab(freshTabs);
+  if (created) return created;
+
+  // IMPORTANT: never fall back to doc.getBody() — that targets PINNED Info tab
+  Logger.log('getOrCreateTodayTab: tab created but still not found. tabFull=' + tabFull);
+  return null;
 }
 
 // ─── Append daily summary to Google Doc ───────────────────────────────────────
@@ -111,8 +134,40 @@ function appendToDoc(payloadJson) {
     // Get or create the chosen date's tab (today or tomorrow)
     var body = getOrCreateTodayTab(doc, data.targetDate);
 
-    // Clear existing content before writing fresh
-    body.clear();
+    // Safety check — if tab lookup/creation failed, bail out rather than
+    // accidentally writing to the PINNED Info tab or any other wrong tab.
+    if (!body) {
+      return { success: false, error: 'Could not find or create a tab for the selected date. Make sure the month tab (e.g. "April 2026 Q4") exists in your doc.' };
+    }
+
+    // ── Read existing note texts so we can skip duplicates on re-sync ─────────
+    var existingTexts = [];
+    try {
+      var numChildren = body.getNumChildren();
+      for (var ei = 0; ei < numChildren; ei++) {
+        var ec = body.getChild(ei);
+        if (ec.getType() === DocumentApp.ElementType.LIST_ITEM) {
+          var et = ec.asListItem().getText().trim().toLowerCase();
+          if (et) existingTexts.push(et);
+        }
+      }
+    } catch(re) { Logger.log('read existing error: ' + re.message); }
+
+    // Strip markdown for clean comparison
+    function cleanForCompare(text) {
+      return text.replace(/\*\*/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+                 .replace(/~~[^~]+~~/g,'').replace(/_([^_]+)_/g,'$1')
+                 .trim().toLowerCase();
+    }
+    function alreadyInDoc(text) {
+      var clean = cleanForCompare(text);
+      if (!clean || clean.length < 3) return false;
+      var prefix = clean.substring(0, 50);
+      for (var xi = 0; xi < existingTexts.length; xi++) {
+        if (existingTexts[xi].indexOf(prefix) >= 0) return true;
+      }
+      return false;
+    }
 
     var FONT = 'Avenir';
 
@@ -175,36 +230,48 @@ function appendToDoc(payloadJson) {
     function writeSection(label, notes) {
       if (!notes || notes.length === 0) return;
 
+      // Filter to only notes not already in the doc
+      var newNotes = notes.filter(function(n) { return !alreadyInDoc(n.text); });
+      if (newNotes.length === 0) return; // nothing new to add
+
+      // Two blank lines between sections for clear visual separation
+      body.appendParagraph('');
       body.appendParagraph('');
 
-      // Section header — bold only + Avenir, level 0 → "1. Label"
-      var header = body.appendListItem(label);
-      header.setNestingLevel(0);
-      header.setGlyphType(DocumentApp.GlyphType.DIGIT);
-      var headerText = header.editAsText();
-      headerText.setFontFamily(FONT);
-      headerText.setBold(true);
-      headerText.setItalic(false);
-      headerText.setUnderline(false);
+      // Section header — only write if not already present
+      if (!alreadyInDoc(label)) {
+        var header = body.appendListItem(label);
+        header.setNestingLevel(0);
+        header.setGlyphType(DocumentApp.GlyphType.DIGIT);
+        header.setLineSpacing(1.15);   // 1.15 line spacing
+        header.setSpacingBefore(12);
+        header.setSpacingAfter(10);   // "Add space after list item"
+        var headerText = header.editAsText();
+        headerText.setFontFamily(FONT);
+        headerText.setBold(true);
+        headerText.setItalic(false);
+        headerText.setUnderline(false);
+      }
 
-      // Items — Avenir only, no bold/italic, level 1 → "   1. item"
-      for (var i = 0; i < notes.length; i++) {
-        var item = body.appendListItem(notes[i].text);
+      // Items — only write notes not already in the doc
+      for (var i = 0; i < newNotes.length; i++) {
+        var item = body.appendListItem(newNotes[i].text);
         item.setNestingLevel(1);
         item.setGlyphType(DocumentApp.GlyphType.DIGIT);
-        if (!applyMarkdownFormatting(item, notes[i].text, FONT)) {
+        if (!applyMarkdownFormatting(item, newNotes[i].text, FONT)) {
           item.editAsText()
             .setFontFamily(FONT)
             .setBold(false)
             .setItalic(false);
         }
-        item.setSpacingBefore(4);
-        item.setSpacingAfter(4);
-        if (notes[i].done) item.editAsText().setStrikethrough(true);
+        item.setLineSpacing(1.15);     // 1.15 line spacing
+        item.setSpacingBefore(6);
+        item.setSpacingAfter(10);     // "Add space after list item"
+        if (newNotes[i].done) item.editAsText().setStrikethrough(true);
 
         // Sub-details — one sub-bullet per line, level 2 → "      i. detail"
-        if (notes[i].detail) {
-          var detailLines = notes[i].detail.split('\n');
+        if (newNotes[i].detail) {
+          var detailLines = newNotes[i].detail.split('\n');
           for (var d = 0; d < detailLines.length; d++) {
             var line = detailLines[d].trim();
             if (!line) continue;
@@ -217,9 +284,10 @@ function appendToDoc(payloadJson) {
                 .setBold(false)
                 .setItalic(false);
             }
-            sub.setSpacingBefore(2);
-            sub.setSpacingAfter(2);
-            if (notes[i].done) sub.editAsText().setStrikethrough(true);
+            sub.setLineSpacing(1.15);  // 1.15 line spacing
+            sub.setSpacingBefore(3);
+            sub.setSpacingAfter(8);   // "Add space after list item"
+            if (newNotes[i].done) sub.editAsText().setStrikethrough(true);
           }
         }
       }
@@ -231,21 +299,31 @@ function appendToDoc(payloadJson) {
       writeSection(sections[s].label, sections[s].notes);
     }
 
-    // ── Notes (live entries) — bold only header, Avenir items ───────────────
+    // ── Notes (live entries) — only add entries not already in the doc ────────
     var live = data.live || [];
-    if (live.length > 0) {
+    var newLive = live.filter(function(e) {
+      var timeStr = Utilities.formatDate(new Date(e.ts), tz, 'h:mm a');
+      return !alreadyInDoc(timeStr + '  ' + e.text);
+    });
+    if (newLive.length > 0) {
       body.appendParagraph('');
-      var liveHdr = body.appendListItem('Notes:');
-      liveHdr.setNestingLevel(0);
-      liveHdr.setGlyphType(DocumentApp.GlyphType.DIGIT);
-      var liveHdrText = liveHdr.editAsText();
-      liveHdrText.setFontFamily(FONT);
-      liveHdrText.setBold(true);
-      liveHdrText.setItalic(false);
-      liveHdrText.setUnderline(false);
-      for (var i = 0; i < live.length; i++) {
-        var timeStr = Utilities.formatDate(new Date(live[i].ts), tz, 'h:mm a');
-        var fullText = timeStr + '  ' + live[i].text;
+      body.appendParagraph('');
+      if (!alreadyInDoc('Notes:')) {
+        var liveHdr = body.appendListItem('Notes:');
+        liveHdr.setNestingLevel(0);
+        liveHdr.setGlyphType(DocumentApp.GlyphType.DIGIT);
+        liveHdr.setLineSpacing(1.15);   // 1.15 line spacing
+        liveHdr.setSpacingBefore(12);
+        liveHdr.setSpacingAfter(10);   // "Add space after list item"
+        var liveHdrText = liveHdr.editAsText();
+        liveHdrText.setFontFamily(FONT);
+        liveHdrText.setBold(true);
+        liveHdrText.setItalic(false);
+        liveHdrText.setUnderline(false);
+      }
+      for (var i = 0; i < newLive.length; i++) {
+        var timeStr = Utilities.formatDate(new Date(newLive[i].ts), tz, 'h:mm a');
+        var fullText = timeStr + '  ' + newLive[i].text;
         var item = body.appendListItem(fullText);
         item.setNestingLevel(1);
         item.setGlyphType(DocumentApp.GlyphType.DIGIT);
@@ -255,8 +333,9 @@ function appendToDoc(payloadJson) {
             .setBold(false)
             .setItalic(false);
         }
-        item.setSpacingBefore(4);
-        item.setSpacingAfter(4);
+        item.setLineSpacing(1.15);      // 1.15 line spacing
+        item.setSpacingBefore(6);
+        item.setSpacingAfter(10);      // "Add space after list item"
       }
     }
 
@@ -462,68 +541,112 @@ function getPinnedNotes() {
 }
 
 // ─── Archive a note to the PINNED Info tab in the Google Doc ─────────────────
-// Writes a properly formatted checkbox list item matching the PINNED tab's style:
-//   - [ ] Note text  (Pinned M/d/YY)
-//         - [ ] detail text
+// Inserts at the top of the PINNED list, renders **bold** and [text](url) properly.
 function archiveNoteToDoc(noteText, noteDetail, category, timestamp) {
   try {
     const doc  = DocumentApp.openById(DOC_ID);
+    const FONT = 'Avenir';
     const date = Utilities.formatDate(new Date(timestamp), Session.getScriptTimeZone(), 'MMMM d, yyyy');
     const mainText = noteText + '  (Added ' + date + ')';
 
-    // Target the PINNED Info tab
+    // ── Markdown formatter: strips **bold** and [text](url), applies real formatting ──
+    function applyMarkdown(item, rawText) {
+      var re = /\*\*([^*]+)\*\*|\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g;
+      var parts = [], lastEnd = 0, match, hasFormat = false;
+      re.lastIndex = 0;
+      while ((match = re.exec(rawText)) !== null) {
+        if (match.index > lastEnd) parts.push({ text: rawText.substring(lastEnd, match.index), bold: false, url: null });
+        if (match[1] !== undefined) { parts.push({ text: match[1], bold: true,  url: null });        }
+        else                        { parts.push({ text: match[2], bold: false, url: match[3] }); }
+        hasFormat = true;
+        lastEnd = match.index + match[0].length;
+      }
+      if (lastEnd < rawText.length) parts.push({ text: rawText.substring(lastEnd), bold: false, url: null });
+      if (!hasFormat) return false;
+      var plain = parts.map(function(p){ return p.text; }).join('');
+      var t = item.editAsText();
+      t.setText(plain);
+      t.setFontFamily(FONT);
+      t.setBold(false); t.setItalic(false); t.setUnderline(false);
+      var pos = 0;
+      for (var i = 0; i < parts.length; i++) {
+        var end = pos + parts[i].text.length - 1;
+        if (parts[i].bold) t.setBold(pos, end, true);
+        if (parts[i].url)  { t.setLinkUrl(pos, end, parts[i].url); t.setForegroundColor(pos, end, '#1155CC'); t.setUnderline(pos, end, true); }
+        pos += parts[i].text.length;
+      }
+      return true;
+    }
+
+    // ── Find the PINNED Info tab ──────────────────────────────────────────────
     var pinnedBody = null;
     try {
       var tabs = doc.getTabs();
       for (var t = 0; t < tabs.length; t++) {
         if (tabs[t].getTitle().toUpperCase().includes('PINNED')) {
-          pinnedBody = tabs[t].asDocumentTab().getBody();
-          break;
+          pinnedBody = tabs[t].asDocumentTab().getBody(); break;
         }
         var children = tabs[t].getChildTabs ? tabs[t].getChildTabs() : [];
         for (var c = 0; c < children.length; c++) {
           if (children[c].getTitle().toUpperCase().includes('PINNED')) {
-            pinnedBody = children[c].asDocumentTab().getBody();
-            break;
+            pinnedBody = children[c].asDocumentTab().getBody(); break;
           }
         }
         if (pinnedBody) break;
       }
-    } catch (tabErr) {
-      Logger.log('archiveNoteToDoc getTabs fallback: ' + tabErr.message);
-    }
-
+    } catch (tabErr) { Logger.log('archiveNoteToDoc getTabs: ' + tabErr.message); }
     if (!pinnedBody) pinnedBody = doc.getBody();
 
-    // ── Find the "PINNED (Thing to remember/completed)" heading ───────────────
-    // New items go RIGHT AFTER this heading, so they appear at the top of the list.
-    var insertAfterIdx = -1;
+    // ── Duplicate check: don't add if note text already exists in PINNED tab ──
+    var cleanNoteText = noteText.replace(/\*\*/g,'').replace(/\[([^\]]+)\]\([^)]+\)/g,'$1').trim().toLowerCase();
+    var notePrefix = cleanNoteText.substring(0, 50);
     var n = pinnedBody.getNumChildren();
+    for (var i = 0; i < n; i++) {
+      var ec = pinnedBody.getChild(i);
+      var et = '';
+      if (ec.getType() === DocumentApp.ElementType.LIST_ITEM) et = ec.asListItem().getText().toLowerCase();
+      else if (ec.getType() === DocumentApp.ElementType.PARAGRAPH) et = ec.asParagraph().getText().toLowerCase();
+      if (et && et.indexOf(notePrefix) >= 0) {
+        Logger.log('archiveNoteToDoc: duplicate detected, skipping: ' + noteText.substring(0,40));
+        doc.saveAndClose();
+        return { success: true, skipped: true };
+      }
+    }
+
+    // ── Find insert position: right after the PINNED heading ─────────────────
+    var insertAfterIdx = -1;
+    n = pinnedBody.getNumChildren();
     for (var i = 0; i < n; i++) {
       var el = pinnedBody.getChild(i);
       if (el.getType() === DocumentApp.ElementType.PARAGRAPH) {
         var txt = el.asParagraph().getText();
         if (txt.indexOf('PINNED') >= 0 &&
            (txt.indexOf('remember') >= 0 || txt.indexOf('completed') >= 0)) {
-          insertAfterIdx = i;
-          break;
+          insertAfterIdx = i; break;
         }
       }
     }
-
-    // Insert position: right after the heading (or position 1 as fallback)
     var insertAt = insertAfterIdx >= 0 ? insertAfterIdx + 1 : 1;
 
-    // Insert detail first (higher index), then main — so main ends up on top
-    if (noteDetail) {
-      var subItem = pinnedBody.insertListItem(insertAt, noteDetail);
+    // ── Insert detail sub-bullet first (ends up below main after insert) ──────
+    if (noteDetail && noteDetail.trim()) {
+      var subItem = pinnedBody.insertListItem(insertAt, noteDetail.trim());
       subItem.setNestingLevel(1);
       subItem.setGlyphType(DocumentApp.GlyphType.HOLLOW_SQUARE);
+      if (!applyMarkdown(subItem, noteDetail.trim())) {
+        subItem.editAsText().setFontFamily(FONT).setBold(false).setItalic(false);
+      }
+      subItem.setSpacingBefore(2); subItem.setSpacingAfter(2);
     }
 
+    // ── Insert main item — render markdown so **bold** and links display properly ──
     var mainItem = pinnedBody.insertListItem(insertAt, mainText);
     mainItem.setNestingLevel(0);
     mainItem.setGlyphType(DocumentApp.GlyphType.HOLLOW_SQUARE);
+    if (!applyMarkdown(mainItem, mainText)) {
+      mainItem.editAsText().setFontFamily(FONT).setBold(false).setItalic(false);
+    }
+    mainItem.setSpacingBefore(4); mainItem.setSpacingAfter(4);
 
     doc.saveAndClose();
     return { success: true };
