@@ -674,10 +674,13 @@ function renderLive(){
   document.getElementById('live-cnt').textContent=state.live.length+' entries';
   if(!state.live||state.live.length===0){log.innerHTML='<div class="empty">Nothing logged yet</div>';return;}
   log.innerHTML=state.live.map(e=>`
-    <div class="log-row" id="lrow-${e.id}">
+    <div class="log-row" id="lrow-${e.id}" style="position:relative" onmouseover="this.querySelector('.live-acts').style.opacity=1" onmouseout="this.querySelector('.live-acts').style.opacity=0">
       <span class="log-time">${fmtT(e.ts)}</span>
       <span class="log-text" onclick="startEditLive('${e.id}')" style="cursor:pointer;flex:1" title="Click to edit">${linkify(e.text)}</span>
-      <button class="ico-btn del" onclick="deleteLive('${e.id}')" style="opacity:.3;font-size:14px" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.3">×</button>
+      <div class="live-acts note-acts" style="opacity:0;transition:opacity .15s;display:flex;gap:3px;flex-shrink:0">
+        <button class="ico-btn" onclick="event.stopPropagation();startEditLive('${e.id}')" title="Edit">✏️</button>
+        <button class="ico-btn del" onclick="event.stopPropagation();deleteLive('${e.id}')" title="Delete">🗑️</button>
+      </div>
     </div>`).join('');
 }
 function startEditLive(id){
@@ -736,8 +739,6 @@ function addNote(e){
   state.notes[cat].unshift(note);
   expandCat(cat); // shows incidents card if hidden, expands any collapsed section
   scheduleSave();
-  // Log to Google Doc
-  google.script.run.logNewNoteToDoc(txt, cat, note.ts);
   renderCat(cat);updateCounts();
   inp.value='';inp.style.height='auto';inp.focus();
   const cp=document.getElementById('capture-preview');if(cp)cp.style.display='none';
@@ -769,7 +770,6 @@ function commitInlineAdd(cat){
   state.notes[cat].unshift(note);
   expandCat(cat);
   scheduleSave();
-  google.script.run.logNewNoteToDoc(txt, cat, note.ts);
   renderCat(cat);updateCounts();
   const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal Notes'};
   toast('Added to '+labels[cat]);
@@ -778,10 +778,7 @@ function toggleNote(cat,id,checked){
   const n=state.notes[cat].find(n=>n.id===id);if(!n)return;
   n.done=checked;
   scheduleSave();
-  // Log completion to Google Doc
-  if(checked) google.script.run.logCompletionToDoc(n.text, cat, Date.now());
   renderCat(cat);updateCounts();
-  if(checked) toast('✅ Logged to doc: '+n.text.substring(0,40)+'…');
 }
 
 function deleteNote(cat,id){
@@ -936,9 +933,11 @@ function closeDatePicker() {
 }
 
 function selectSyncDate(offsetDays) {
-  // Capture chosen date as ISO string for the backend
+  // Send local date as ISO string — use noon local time to avoid UTC day-shift
+  // caused by timezone offset (e.g. 11pm PT = next day UTC).
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
+  d.setHours(12, 0, 0, 0); // noon local time — safe from any timezone boundary
   _syncTargetDate = d.toISOString();
 
   const label = _formatDateLabel(offsetDays);
