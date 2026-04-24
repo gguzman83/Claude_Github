@@ -176,7 +176,9 @@ function appendToDoc(payloadJson) {
     // then applies bold/link/color styling at the correct character positions.
     // Returns true if any formatting was found and applied, false if plain text only.
     function applyMarkdownFormatting(item, rawText, font) {
-      var combinedRe = /\*\*([^*]+)\*\*|\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g;
+      // Match **bold** and [text](any-url) — URL pattern is permissive ([^)]+)
+      // so Slack links, file:// links, and encoded URLs all match correctly.
+      var combinedRe = /\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)]+)\)/g;
       var parts = [];
       var lastEnd = 0;
       var match;
@@ -190,8 +192,11 @@ function appendToDoc(payloadJson) {
           // **bold**
           parts.push({ text: match[1], bold: true, url: null });
         } else {
-          // [text](url)
-          parts.push({ text: match[2], bold: false, url: match[3] });
+          // [text](url) — only treat as link if URL looks like a real URL
+          var url = match[3];
+          var isLink = url && (url.indexOf('http') === 0 || url.indexOf('slack') === 0 || url.indexOf('file') === 0 || url.indexOf('mailto') === 0);
+          parts.push({ text: match[2], bold: false, url: isLink ? url : null });
+          if (!isLink) { hasFormatting = true; } // still strip the markdown even if not a link
         }
         hasFormatting = true;
         lastEnd = match.index + match[0].length;
@@ -551,7 +556,7 @@ function archiveNoteToDoc(noteText, noteDetail, category, timestamp) {
 
     // ── Markdown formatter: strips **bold** and [text](url), applies real formatting ──
     function applyMarkdown(item, rawText) {
-      var re = /\*\*([^*]+)\*\*|\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g;
+      var re = /\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)]+)\)/g;
       var parts = [], lastEnd = 0, match, hasFormat = false;
       re.lastIndex = 0;
       while ((match = re.exec(rawText)) !== null) {
@@ -572,7 +577,10 @@ function archiveNoteToDoc(noteText, noteDetail, category, timestamp) {
       for (var i = 0; i < parts.length; i++) {
         var end = pos + parts[i].text.length - 1;
         if (parts[i].bold) t.setBold(pos, end, true);
-        if (parts[i].url)  { t.setLinkUrl(pos, end, parts[i].url); t.setForegroundColor(pos, end, '#1155CC'); t.setUnderline(pos, end, true); }
+        if (parts[i].url) {
+          var isValidUrl = parts[i].url.indexOf('http') === 0 || parts[i].url.indexOf('slack') === 0 || parts[i].url.indexOf('file') === 0 || parts[i].url.indexOf('mailto') === 0;
+          if (isValidUrl) { t.setLinkUrl(pos, end, parts[i].url); t.setForegroundColor(pos, end, '#1155CC'); t.setUnderline(pos, end, true); }
+        }
         pos += parts[i].text.length;
       }
       return true;
