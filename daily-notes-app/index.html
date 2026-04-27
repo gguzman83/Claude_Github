@@ -443,8 +443,11 @@ function redoApp() {
   renderAll(); toast('↪ Redo');
 }
 document.addEventListener('keydown', function(e) {
-  const activeTag = document.activeElement && document.activeElement.tagName;
-  const inField = activeTag === 'TEXTAREA' || activeTag === 'INPUT';
+  const activeEl  = document.activeElement;
+  const activeTag = activeEl && activeEl.tagName;
+  const inField   = activeTag === 'TEXTAREA' || activeTag === 'INPUT';
+  // Never hijack undo/redo while user is typing in any field —
+  // let the browser's native undo stack handle it
   if ((e.metaKey || e.ctrlKey) && !inField) {
     if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); undoApp(); }
     if ((e.key === 'z' && e.shiftKey) || e.key === 'y') { e.preventDefault(); redoApp(); }
@@ -657,9 +660,9 @@ function renderCat(cat){
         </div>
       </div>
       ${isEd?`<div class="edit-form">
-        <div style="font-size:11px;color:#6366f1;margin-bottom:5px;opacity:.7">✏️ <kbd style="background:#ede9fe;border-radius:3px;padding:1px 4px;font-size:10px">⌘B</kbd> bold &nbsp;·&nbsp; <kbd style="background:#ede9fe;border-radius:3px;padding:1px 4px;font-size:10px">⌘I</kbd> italic &nbsp;·&nbsp; <kbd style="background:#ede9fe;border-radius:3px;padding:1px 4px;font-size:10px">⌘U</kbd> underline &nbsp;·&nbsp; <kbd style="background:#ede9fe;border-radius:3px;padding:1px 4px;font-size:10px">⌘⇧X</kbd> strikethrough &nbsp;·&nbsp; <kbd style="background:#ede9fe;border-radius:3px;padding:1px 4px;font-size:10px">⌘K</kbd> link</div>
+        <div style="font-size:11px;color:#6366f1;margin-bottom:5px;opacity:.7">✏️ <kbd style="background:#ede9fe;border-radius:3px;padding:1px 4px;font-size:10px">⌘B</kbd> bold &nbsp;·&nbsp; <kbd style="background:#ede9fe;border-radius:3px;padding:1px 4px;font-size:10px">⌘I</kbd> italic &nbsp;·&nbsp; <kbd style="background:#ede9fe;border-radius:3px;padding:1px 4px;font-size:10px">⌘U</kbd> underline &nbsp;·&nbsp; <kbd style="background:#ede9fe;border-radius:3px;padding:1px 4px;font-size:10px">⌘⇧X</kbd> strikethrough &nbsp;·&nbsp; <kbd style="background:#ede9fe;border-radius:3px;padding:1px 4px;font-size:10px">⌘K</kbd> link &nbsp;·&nbsp; <kbd style="background:#ede9fe;border-radius:3px;padding:1px 4px;font-size:10px">⌘S</kbd> save &nbsp;·&nbsp; <kbd style="background:#ede9fe;border-radius:3px;padding:1px 4px;font-size:10px">⌘Z</kbd> undo</div>
         <textarea id="et-${n.id}"
-          onkeydown="handleTabKey(event,'et-${n.id}');if(event.key==='Escape')cancelEdit();handleLinkHotkey(event,'et-${n.id}')"
+          onkeydown="handleTabKey(event,'et-${n.id}');if(event.key==='Escape'){cancelEdit();}handleLinkHotkey(event,'et-${n.id}');autoCheckEditPreview('et-${n.id}','prev-${n.id}')"
           onpaste="handlePasteWithLinks(event,'et-${n.id}')"
           oninput="autoCheckEditPreview('et-${n.id}','prev-${n.id}')">${esc(n.text)}</textarea>
         <div id="prev-${n.id}" style="display:none;font-size:13px;color:#374151;padding:6px 8px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;margin-top:4px;line-height:1.5"></div>
@@ -1394,15 +1397,50 @@ function handleLinkHotkey(e, inputId) {
   const mod = e.metaKey || e.ctrlKey;
   if (!mod) return;
   const k = e.key.toLowerCase();
-  if (k === 'k' && !e.shiftKey)              { e.preventDefault(); openLinkDialog(inputId); }
-  else if (k === 'b' && !e.shiftKey)         { e.preventDefault(); applyInlineFormat(inputId,'**'); }
-  else if (k === 'i' && !e.shiftKey)         { e.preventDefault(); applyInlineFormat(inputId,'_'); }
-  else if (k === 'u' && !e.shiftKey)         { e.preventDefault(); applyInlineFormat(inputId,'__'); }
-  else if ((k === 'x' || k === 'X') && e.shiftKey) { e.preventDefault(); applyInlineFormat(inputId,'~~'); }
+
+  // ⌘Z / ⌘Y / ⌘⇧Z — stop propagation so the global undoApp() never fires;
+  // the browser handles native undo/redo inside textareas natively.
+  if (k === 'z' || k === 'y') { e.stopImmediatePropagation(); return; }
+
+  // ⌘S — save the note currently being edited (or commit inline add)
+  if (k === 's' && !e.shiftKey) {
+    e.preventDefault();
+    if (inputId.startsWith('et-')) {
+      const id = inputId.slice(3);
+      // find which cat owns this note
+      const cat = Object.keys(state.notes).find(c => state.notes[c].some(n => n.id === id));
+      if (cat) saveEdit(cat, id);
+    } else if (inputId.startsWith('inline-inp-')) {
+      const cat = inputId.slice('inline-inp-'.length);
+      commitInlineAdd(cat);
+    }
+    return;
+  }
+
+  // ⌘Enter — insert a real newline
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.execCommand('insertText', false, '\n') ||
+      (function(){ const el=document.getElementById(inputId); if(!el) return;
+        const s=el.selectionStart, en=el.selectionEnd;
+        el.setRangeText('\n',s,en,'end');
+        el.dispatchEvent(new Event('input',{bubbles:true})); })();
+    return;
+  }
+
+  if (k === 'k' && !e.shiftKey)                    { e.preventDefault(); openLinkDialog(inputId); }
+  else if (k === 'b' && !e.shiftKey)               { e.preventDefault(); applyInlineFormat(inputId,'**'); }
+  else if (k === 'i' && !e.shiftKey)               { e.preventDefault(); applyInlineFormat(inputId,'_'); }
+  else if (k === 'u' && !e.shiftKey)               { e.preventDefault(); applyInlineFormat(inputId,'__'); }
+  else if ((k === 'x') && e.shiftKey)              { e.preventDefault(); applyInlineFormat(inputId,'~~'); }
   else if ((k === '8' || k === '*') && e.shiftKey) { e.preventDefault(); applyBullet(inputId); }
   else return;
-  // Refresh preview if open
-  const previewId = inputId.startsWith('et-') ? 'prev-'+inputId.slice(3) : null;
+
+  // Refresh preview — works for et-*, inline-inp-*, and ledit-* textareas
+  let previewId = null;
+  if (inputId.startsWith('et-'))          previewId = 'prev-' + inputId.slice(3);
+  else if (inputId.startsWith('inline-inp-')) previewId = 'inline-prev-' + inputId.slice('inline-inp-'.length);
+  else if (inputId.startsWith('ledit-'))  previewId = 'lprev-' + inputId.slice(6);
   if (previewId) autoCheckEditPreview(inputId, previewId);
 }
 function handleTabKey(e, inputId) {
@@ -1508,7 +1546,7 @@ function updateEditPreview(inputId, previewId) {
 function applyInlineFormat(inputId, marker) {
   const el = document.getElementById(inputId);
   if (!el) return;
-  el.focus();
+  // Capture selection BEFORE focus() — focus() can reset it on some browsers
   const start = el.selectionStart, end = el.selectionEnd;
   const sel   = el.value.substring(start, end);
   const mLen  = marker.length;
@@ -1518,10 +1556,19 @@ function applyInlineFormat(inputId, marker) {
   } else {
     replacement = marker + sel + marker;
   }
-  // execCommand preserves the browser's native undo stack (⌘Z works)
-  if (!document.execCommand('insertText', false, replacement)) {
-    el.value = el.value.substring(0, start) + replacement + el.value.substring(end);
-    el.setSelectionRange(start, start + replacement.length);
+  el.focus();
+  el.setSelectionRange(start, end);
+  // execCommand is the ONLY way to preserve the browser's native ⌘Z undo stack
+  const ok = document.execCommand('insertText', false, replacement);
+  if (!ok) {
+    // Fallback that still preserves undo via setRangeText where supported
+    if (typeof el.setRangeText === 'function') {
+      el.setRangeText(replacement, start, end, 'end');
+    } else {
+      el.value = el.value.substring(0, start) + replacement + el.value.substring(end);
+      el.setSelectionRange(start + replacement.length, start + replacement.length);
+    }
+    el.dispatchEvent(new Event('input', {bubbles: true}));
   }
 }
 
