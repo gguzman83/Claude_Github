@@ -773,7 +773,7 @@ function addNote(e){
 
 function startInlineAdd(cat){
   const el=document.getElementById('list-'+cat);
-  const labels={incidents:'Incidents & Escalations',tasks:'Tasks & Action Items',projects:'Projects & Initiatives',clpse:'CLPSE',splitrole:'Split Role',personal:'My Personal Notes'};
+  const labels={incidents:'Incidents & Escalations',tasks:'Tasks & Action Items',projects:'Projects & Initiatives',clpse:'CLPSE',splitrole:'Split Role',personal:'My Personal Notes',slack:'Slack - Follow-ups'};
   el.innerHTML=`<div style="padding:10px 12px">
     <input class="inp" id="inline-inp-${cat}" placeholder="Add a note to ${labels[cat]}…" autocomplete="off"
       onkeydown="if(event.key==='Enter'){event.preventDefault();commitInlineAdd('${cat}');}if(event.key==='Escape'){renderCat('${cat}');}"
