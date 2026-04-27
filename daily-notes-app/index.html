@@ -130,6 +130,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .clpse-hdr{background:#f0fdfa;border-bottom:1px solid #99f6e4}.clpse-t{color:#0f766e}.clpse-b{color:#0f766e;background:#ccfbf1}
 .split-hdr{background:#fffbeb;border-bottom:1px solid #fde68a}.split-t{color:#b45309}.split-b{color:#b45309;background:#fef3c7}
 .prs-hdr{background:#ecfdf5;border-bottom:1px solid #6ee7b7}.prs-t{color:#065f46;font-weight:700}.prs-b{color:#065f46;background:#d1fae5}
+.slack-hdr{background:#f5f3ff;border-bottom:1px solid #ddd6fe}.slack-t{color:#4f46e5;font-weight:700}.slack-b{color:#4f46e5;background:#ede9fe}
 .done-b{color:#16a34a;background:#dcfce7;font-size:10px;padding:1px 7px;border-radius:99px;font-weight:600}
 /* Loading */
 .loader{display:flex;align-items:center;justify-content:center;min-height:60vh;flex-direction:column;gap:16px}
@@ -180,6 +181,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <option value="projects">🏗️ Projects</option>
           <option value="clpse">🔵 CLPSE</option>
           <option value="splitrole">🟡 Split Role</option>
+          <option value="slack">💬 Slack - Follow-ups</option>
           <option value="personal">📝 Personal Notes</option>
         </select>
         <button type="submit" class="btn btn-primary">Add</button>
@@ -246,6 +248,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
             <div class="card-body" id="list-splitrole" ondragover="bodyDragOver(event,'splitrole')" ondragleave="bodyDragLeave(event,'splitrole')" ondrop="bodyDrop(event,'splitrole')"></div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Slack Follow-ups (full width, before Live Notes) -->
+    <div style="padding:8px 20px 0">
+      <div class="card" id="card-slack">
+        <div class="card-hdr slack-hdr" id="hdr-slack" onclick="toggleCat('slack')">
+          <div class="card-title"><span>💬</span><span class="slack-t">Slack - Follow-ups</span><span class="chevron">▾</span></div>
+          <div class="badges"><span class="badge done-b" id="done-slack" style="display:none"></span><span class="badge slack-b" id="cnt-slack">0</span></div>
+        </div>
+        <div class="card-body" id="list-slack" ondragover="bodyDragOver(event,'slack')" ondragleave="bodyDragLeave(event,'slack')" ondrop="bodyDrop(event,'slack')"></div>
       </div>
     </div>
 
@@ -384,7 +397,16 @@ const SEED = {
     splitrole: [
       {id:'m2',text:'Sync with Availash re: Split Role Engagement Message',detail:'Sent 3/26 — follow up in 2 weeks if no response',done:false,source:'My Work',ts:Date.now()},
     ],
-    personal: []
+    personal: [],
+    slack: [
+      {id:'sl1',text:'Reminder (self) — get most recent blood pressure reading, home blood pressure is less than 135/85',detail:'',done:false,source:'Slack Later',ts:Date.now()-540000},
+      {id:'sl2',text:'[Dee Prasad](https://intuit.enterprise.slack.com/archives/D0B0MFWTMB2/p1777075381647109) — 4-8 laptops for Accountant Council product demo (Monday delivery needed, Tuesday session)',detail:'Intuit Intelligence team / Nhung — standard loaner may not be right process, she submitted one already',done:false,source:'Slack Later',ts:Date.now()-540000},
+      {id:'sl3',text:'[Guillermo → Inder](https://intuit.enterprise.slack.com/archives/D0AVABZQ45S/p1777067989590289) — "Sure, I\'ll swing by at 9am to drop it off"',detail:'Follow up to confirm drop-off happened',done:false,source:'Slack Later',ts:Date.now()-540000},
+      {id:'sl4',text:'[Laura Leonard](https://intuit.enterprise.slack.com/archives/C0B0CV9GRC0/p1776985910916989) — AI TechKnowBar at GED week (Chris Kasten suggestion)',detail:'Claude/Cursor desktop setup, MCP setup, skills, configs, and authentication — respond to event producer',done:false,source:'Slack Later',ts:Date.now()-540000},
+      {id:'sl5',text:'[Guillermo → Mo Hamilton / Ritu Das](https://intuit.enterprise.slack.com/archives/C0AUX40H0AE/p1776984566263149) — 1-time exception: note in asset record, confirm laptop available',detail:'Let them know to come pick it up once laptop confirmed',done:false,source:'Slack Later',ts:Date.now()-540000},
+      {id:'sl6',text:'[Vikas Chandra Chaudhary](https://intuit.enterprise.slack.com/archives/D9PH7BV1B/p1777124989326579) — Review updated Managers Guide + HTML file',detail:'Mock data except Gilbert (from file + SNOW reports). [Managers Guide](https://docs.google.com/document/d/1Tio8g81fSBQIXLV1guzKluz3dBy-XiQOCvBZPytwyYk/edit)',done:false,source:'Slack Later',ts:Date.now()-43200000},
+      {id:'sl7',text:'[Hieu Giap](https://intuit.enterprise.slack.com/archives/C0AUYNA1Z8T/p1777051657409649) — ~6 free-range laptops for MC leadership AI tools testing',detail:'CPC & AI Sandbox limitations (no OpenClaw/Hermes Agent) — similar to Claude Desktop testing setup a few months ago',done:false,source:'Slack Later',ts:Date.now()-86400000},
+    ]
   },
   live: [
     {id:'l1',text:'End of Year Review — t4i Care Manager ratings / FY26 Talent Mid Year / EOY',ts:Date.now()-3000},
@@ -426,8 +448,8 @@ document.addEventListener('keydown', function(e) {
   }
 });
 // Collapse state for all sections (toggle on header click)
-let collapsed = { incidents: false, tasks: false, projects: false, clpse: false, splitrole: false, personal: false };
-let showAll = { incidents: false, tasks: false, projects: false, clpse: false, splitrole: false, personal: false };
+let collapsed = { incidents: false, tasks: false, projects: false, clpse: false, splitrole: false, personal: false, slack: false };
+let showAll = { incidents: false, tasks: false, projects: false, clpse: false, splitrole: false, personal: false, slack: false };
 const NOTES_LIMIT = 10;
 
 function setIncidentsVisible(visible) {
@@ -552,7 +574,7 @@ function loadFromServer(){
       // Ensure all categories always exist (handles old saved data missing newer cats)
       // Migrate old meetings → clpse if needed
       if(state.notes.meetings && !state.notes.clpse){state.notes.clpse=state.notes.meetings;delete state.notes.meetings;}
-      ['incidents','tasks','projects','clpse','splitrole','personal'].forEach(c=>{
+      ['incidents','tasks','projects','clpse','splitrole','personal','slack'].forEach(c=>{
         if(!state.notes[c]) state.notes[c]=[];
       });
       renderAll();
@@ -895,6 +917,7 @@ function _buildSyncSections(){
   add('Incidents & Escalations:', state.notes.incidents);
   add('My Work:', state.notes.tasks);
   add('Projects & Initiatives:', state.notes.projects);
+  add('Slack - Follow-ups:', state.notes.slack);
   add('CLPSE:', state.notes.clpse);
   add('Split Role:', state.notes.splitrole);
   add('My Personal Notes:', state.notes.personal);
