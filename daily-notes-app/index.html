@@ -651,7 +651,7 @@ function renderCat(cat){
           </div>
         </div>
         <div class="note-acts">
-          <button class="ico-btn" onclick="event.stopPropagation();moveToLive('${cat}','${n.id}')" title="Move to Live Notes">📝</button>
+          <button class="ico-btn" onclick="event.stopPropagation();pinNote('${cat}','${n.id}')" title="Pin & Archive">📌</button>
           <button class="ico-btn" onclick="event.stopPropagation();startEdit('${cat}','${n.id}')" title="Edit">✏️</button>
           <button class="ico-btn del" onclick="event.stopPropagation();deleteNote('${cat}','${n.id}')" title="Delete">🗑️</button>
         </div>
