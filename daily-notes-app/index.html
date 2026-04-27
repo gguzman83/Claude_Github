@@ -603,7 +603,7 @@ function scheduleSave(){
 
 // ─── Render ───────────────────────────────────────────────────────────────────
 function renderAll(){
-  ['incidents','tasks','projects','clpse','splitrole','personal'].forEach(cat => { renderCat(cat); applyCollapsed(cat); });
+  ['incidents','tasks','projects','clpse','splitrole','personal','slack'].forEach(cat => { renderCat(cat); applyCollapsed(cat); });
   showIncidentsIfHasNotes();
   renderLive();updateCounts();
 }
@@ -742,7 +742,7 @@ function commitEditLive(id){
 
 function updateCounts(){
   let total=0;
-  ['incidents','tasks','projects','clpse','splitrole','personal'].forEach(cat=>{
+  ['incidents','tasks','projects','clpse','splitrole','personal','slack'].forEach(cat=>{
     const list=state.notes[cat]||[];
     const done=list.filter(n=>n.done).length;
     document.getElementById('cnt-'+cat).textContent=list.length;
@@ -767,7 +767,7 @@ function addNote(e){
   renderCat(cat);updateCounts();
   inp.value='';inp.style.height='auto';inp.focus();
   const cp=document.getElementById('capture-preview');if(cp)cp.style.display='none';
-  const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal Notes'};
+  const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal Notes',slack:'💬 Slack - Follow-ups'};
   toast('Added to '+labels[cat]);
 }
 
@@ -796,7 +796,7 @@ function commitInlineAdd(cat){
   expandCat(cat);
   scheduleSave();
   renderCat(cat);updateCounts();
-  const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal Notes'};
+  const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal Notes',slack:'💬 Slack - Follow-ups'};
   toast('Added to '+labels[cat]);
 }
 function toggleNote(cat,id,checked){
@@ -1271,7 +1271,7 @@ function noteDrop(e, tgtCat, tgtId) {
   scheduleSave();
   renderAll();
   if (srcCat !== tgtCat) {
-    const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal'};
+    const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal',slack:'💬 Slack'};
     toast('Moved to ' + labels[tgtCat]);
   }
 }
@@ -1304,7 +1304,7 @@ function bodyDrop(e, tgtCat) {
   scheduleSave();
   renderAll();
   if (srcCat !== tgtCat) {
-    const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal'};
+    const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal',slack:'💬 Slack'};
     toast('Moved to ' + labels[tgtCat]);
   }
 }
