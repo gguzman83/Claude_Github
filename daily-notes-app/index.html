@@ -667,12 +667,12 @@ function renderCat(cat){
         <div class="edit-acts">
           <button class="btn btn-primary btn-sm" onclick="saveEdit('${cat}','${n.id}')">Save</button>
           <button class="btn btn-sm btn-outline" onclick="cancelEdit()">Cancel</button>
-          <button class="btn btn-sm fmt-btn" onclick="applyInlineFormat('et-${n.id}','**');autoCheckEditPreview('et-${n.id}','prev-${n.id}')" title="Bold (⌘B)"><strong>B</strong></button>
-          <button class="btn btn-sm fmt-btn" onclick="applyInlineFormat('et-${n.id}','_');autoCheckEditPreview('et-${n.id}','prev-${n.id}')" title="Italic (⌘I)"><em>I</em></button>
-          <button class="btn btn-sm fmt-btn" onclick="applyInlineFormat('et-${n.id}','__');autoCheckEditPreview('et-${n.id}','prev-${n.id}')" title="Underline (⌘U)"><u>U</u></button>
-          <button class="btn btn-sm fmt-btn" onclick="applyInlineFormat('et-${n.id}','~~');autoCheckEditPreview('et-${n.id}','prev-${n.id}')" title="Strikethrough (⌘⇧X)"><s>S</s></button>
-          <button class="btn btn-sm fmt-btn" onclick="applyBullet('et-${n.id}');autoCheckEditPreview('et-${n.id}','prev-${n.id}')" title="Bullet">•</button>
-          <button class="btn btn-sm" onclick="openLinkDialog('et-${n.id}')" style="background:#ede9fe;color:#6366f1;border:1.5px solid #c4b5fd;font-size:12px">🔗 Link</button>
+          <button class="btn btn-sm fmt-btn" onmousedown="event.preventDefault()" onclick="applyInlineFormat('et-${n.id}','**');autoCheckEditPreview('et-${n.id}','prev-${n.id}')" title="Bold (⌘B)"><strong>B</strong></button>
+          <button class="btn btn-sm fmt-btn" onmousedown="event.preventDefault()" onclick="applyInlineFormat('et-${n.id}','_');autoCheckEditPreview('et-${n.id}','prev-${n.id}')" title="Italic (⌘I)"><em>I</em></button>
+          <button class="btn btn-sm fmt-btn" onmousedown="event.preventDefault()" onclick="applyInlineFormat('et-${n.id}','__');autoCheckEditPreview('et-${n.id}','prev-${n.id}')" title="Underline (⌘U)"><u>U</u></button>
+          <button class="btn btn-sm fmt-btn" onmousedown="event.preventDefault()" onclick="applyInlineFormat('et-${n.id}','~~');autoCheckEditPreview('et-${n.id}','prev-${n.id}')" title="Strikethrough (⌘⇧X)"><s>S</s></button>
+          <button class="btn btn-sm fmt-btn" onmousedown="event.preventDefault()" onclick="applyBullet('et-${n.id}');autoCheckEditPreview('et-${n.id}','prev-${n.id}')" title="Bullet">•</button>
+          <button class="btn btn-sm" onmousedown="event.preventDefault()" onclick="openLinkDialog('et-${n.id}')" style="background:#ede9fe;color:#6366f1;border:1.5px solid #c4b5fd;font-size:12px">🔗 Link</button>
           <button class="pin-btn" onclick="pinNote('${cat}','${n.id}')">📌 Pin & Archive</button>
         </div>
       </div>`:''}
@@ -792,12 +792,12 @@ function startInlineAdd(cat){
     <div class="edit-acts">
       <button class="btn btn-primary btn-sm" onclick="commitInlineAdd('${cat}')">Add</button>
       <button class="btn btn-sm btn-outline" onclick="renderCat('${cat}')">Cancel</button>
-      <button class="btn btn-sm fmt-btn" onclick="applyInlineFormat('${tid}','**');autoCheckEditPreview('${tid}','${pid}')" title="Bold (⌘B)"><strong>B</strong></button>
-      <button class="btn btn-sm fmt-btn" onclick="applyInlineFormat('${tid}','_');autoCheckEditPreview('${tid}','${pid}')" title="Italic (⌘I)"><em>I</em></button>
-      <button class="btn btn-sm fmt-btn" onclick="applyInlineFormat('${tid}','__');autoCheckEditPreview('${tid}','${pid}')" title="Underline (⌘U)"><u>U</u></button>
-      <button class="btn btn-sm fmt-btn" onclick="applyInlineFormat('${tid}','~~');autoCheckEditPreview('${tid}','${pid}')" title="Strikethrough (⌘⇧X)"><s>S</s></button>
-      <button class="btn btn-sm fmt-btn" onclick="applyBullet('${tid}');autoCheckEditPreview('${tid}','${pid}')" title="Bullet">•</button>
-      <button class="btn btn-sm" onclick="openLinkDialog('${tid}')" style="background:#ede9fe;color:#6366f1;border:1.5px solid #c4b5fd;font-size:12px">🔗 Link</button>
+      <button class="btn btn-sm fmt-btn" onmousedown="event.preventDefault()" onclick="applyInlineFormat('${tid}','**');autoCheckEditPreview('${tid}','${pid}')" title="Bold (⌘B)"><strong>B</strong></button>
+      <button class="btn btn-sm fmt-btn" onmousedown="event.preventDefault()" onclick="applyInlineFormat('${tid}','_');autoCheckEditPreview('${tid}','${pid}')" title="Italic (⌘I)"><em>I</em></button>
+      <button class="btn btn-sm fmt-btn" onmousedown="event.preventDefault()" onclick="applyInlineFormat('${tid}','__');autoCheckEditPreview('${tid}','${pid}')" title="Underline (⌘U)"><u>U</u></button>
+      <button class="btn btn-sm fmt-btn" onmousedown="event.preventDefault()" onclick="applyInlineFormat('${tid}','~~');autoCheckEditPreview('${tid}','${pid}')" title="Strikethrough (⌘⇧X)"><s>S</s></button>
+      <button class="btn btn-sm fmt-btn" onmousedown="event.preventDefault()" onclick="applyBullet('${tid}');autoCheckEditPreview('${tid}','${pid}')" title="Bullet">•</button>
+      <button class="btn btn-sm" onmousedown="event.preventDefault()" onclick="openLinkDialog('${tid}')" style="background:#ede9fe;color:#6366f1;border:1.5px solid #c4b5fd;font-size:12px">🔗 Link</button>
     </div>
   </div>`;
   setTimeout(()=>{const ta=document.getElementById(tid);if(ta){ta.focus();}},50);
