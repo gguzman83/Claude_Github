@@ -1145,7 +1145,7 @@ function pinNote(cat, id) {
       }
     })
     .withFailureHandler(() => toast('⚠️ Could not write to doc'))
-    .archiveNoteToDoc(note.text, note.detail || '', cat, note.ts || Date.now());
+    .archiveNoteToDoc(note.text, note.detail || '', cat, Date.now()); // always use NOW as the pin date
 }
 
 // ─── Pinned Notes ─────────────────────────────────────────────────────────────
