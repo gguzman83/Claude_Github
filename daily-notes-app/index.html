@@ -911,29 +911,64 @@ function buildSyncText(){
 
 // ── HTML for the modal preview (bold headers, proper spacing) ─────────────────
 function buildSyncHtml(){
-  // Inline version of linkify — strips the outer <div> block wrappers that linkify
-  // adds for line-break rendering, so content stays inline with "1." number labels.
-  function linkifyInline(s) {
-    const full = linkify(s);
-    // Remove wrapping <div>…</div> per-line blocks → replace with <br> between lines
-    return full.replace(/<\/div><div>/g, '<br>').replace(/^<div>/, '').replace(/<\/div>$/, '');
+  // Clean inline renderer for the sync preview:
+  // - Renders [text](url) markdown links as clickable <a> tags
+  // - Strips **bold**, __underline__, ~~strike~~, _italic_ → plain text
+  // - Strips bullet markers (-, *, •) → plain text lines
+  // - Joins multi-line text with <br> so layout stays inline with number labels
+  function linkifyInline(raw) {
+    raw = String(raw);
+    const aStyle = 'color:#6366f1;text-decoration:underline;word-break:break-all';
+    const ph = [];
+    const hold = html => { const i = ph.length; ph.push(html); return `\x00P${i}\x00`; };
+    const mkLink = (u, label) => `<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="${aStyle}">${label}</a>`;
+
+    // Fix old buggy stored format: bare URL + quote + display text
+    raw = raw.replace(/(https?:\/\/[^\s"<>]+)"[^>]+>([^\n<]+)/g, '[$2]($1)');
+    // Collapse [text]\n(url) split across lines
+    raw = raw.replace(/\[([^\]\n]+)\]\s*\n\s*\((https?:\/\/[^\)]+)\)/g, '[$1]($2)');
+    // Markdown links → placeholders (preserve these as clickable)
+    raw = raw.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (_, t, u) => hold(mkLink(u, esc(t))));
+    // Strip all inline markdown formatting → plain text
+    raw = raw.replace(/\*\*([^*]+)\*\*/g, '$1');
+    raw = raw.replace(/__([^_]+)__/g,      '$1');
+    raw = raw.replace(/~~([^~]+)~~/g,      '$1');
+    raw = raw.replace(/_([^_\n]+)_/g,      '$1');
+    // Escape remaining plain text (placeholders survive — \x00 not touched by esc)
+    let r = esc(raw);
+    // Bare URLs → clickable links
+    r = r.replace(/(https?:\/\/[^\s&"<>()\x00]+)/g, u => hold(mkLink(u, u)));
+    // Restore placeholders
+    let prev;
+    do { prev = r; r = r.replace(/\x00P(\d+)\x00/g, (_, i) => ph[+i]); } while (r !== prev);
+    // Convert lines to plain text — strip bullet prefixes, join with <br>
+    r = r.split('\n')
+      .map(line => {
+        const t = line.trimStart();
+        if (t.startsWith('- ') || t.startsWith('* ')) return t.slice(2);
+        if (t.startsWith('• '))                        return t.slice(2);
+        return line;
+      })
+      .filter(l => l.trim())
+      .join('<br>');
+    return r;
   }
 
   const sections = _buildSyncSections();
-  let html = `<div style="font-family:sans-serif;font-size:13px;color:#374151;line-height:1.6">`;
+  let html = `<div style="font-family:sans-serif;font-size:13px;color:#374151;line-height:1.7">`;
   sections.forEach(s => {
-    html += `<div style="margin-bottom:16px">`;
+    html += `<div style="margin-bottom:18px">`;
     html += `<div style="margin-bottom:6px;font-weight:700;color:#1e293b">${esc(s.label)}</div>`;
     s.notes.forEach((n, i) => {
       const body = linkifyInline(n.text);
       const txt  = n.done ? `<s style="color:#94a3b8">${body}</s>` : body;
-      // Flex keeps the number pinned left even when content wraps
-      html += `<div style="display:flex;gap:6px;padding-left:16px;margin-bottom:8px">`;
-      html += `<span style="flex-shrink:0;color:#64748b">${i+1}.</span>`;
-      html += `<div style="flex:1">${txt}`;
+      // Flex row: number pinned left, content fills right — works even if text has <br>
+      html += `<div style="display:flex;gap:8px;padding-left:16px;margin-bottom:10px;align-items:flex-start">`;
+      html += `<span style="flex-shrink:0;min-width:18px;color:#64748b;padding-top:1px">${i+1}.</span>`;
+      html += `<div style="flex:1;min-width:0">${txt}`;
       if (n.detail) {
-        n.detail.split('\n').filter(l=>l.trim()).forEach(dl => {
-          html += `<div style="padding-left:16px;color:#64748b;margin-top:3px">↳ ${linkifyInline(dl)}</div>`;
+        n.detail.split('\n').filter(l => l.trim()).forEach(dl => {
+          html += `<div style="padding-left:12px;color:#64748b;margin-top:4px">↳ ${linkifyInline(dl)}</div>`;
         });
       }
       html += `</div></div>`;
@@ -941,12 +976,12 @@ function buildSyncHtml(){
     html += `</div>`;
   });
   if (state.live && state.live.length > 0) {
-    html += `<div style="margin-bottom:16px">`;
+    html += `<div style="margin-bottom:18px">`;
     html += `<div style="margin-bottom:6px;font-weight:700;color:#1e293b">Live Notes:</div>`;
-    state.live.forEach((e,i) => {
-      html += `<div style="display:flex;gap:6px;padding-left:16px;margin-bottom:8px">`;
-      html += `<span style="flex-shrink:0;color:#64748b">${i+1}.</span>`;
-      html += `<div style="flex:1"><span style="color:#94a3b8;font-size:11px">${esc(fmtT(e.ts))}</span>  ${linkifyInline(e.text)}</div>`;
+    state.live.forEach((e, i) => {
+      html += `<div style="display:flex;gap:8px;padding-left:16px;margin-bottom:10px;align-items:flex-start">`;
+      html += `<span style="flex-shrink:0;min-width:18px;color:#64748b;padding-top:1px">${i+1}.</span>`;
+      html += `<div style="flex:1;min-width:0"><span style="color:#94a3b8;font-size:11px">${esc(fmtT(e.ts))}</span>&nbsp; ${linkifyInline(e.text)}</div>`;
       html += `</div>`;
     });
     html += `</div>`;
