@@ -626,19 +626,34 @@ function archiveNoteToDoc(noteText, noteDetail, category, timestamp) {
       }
     }
 
-    // ── Find insert position: right after the PINNED heading ─────────────────
+    // ── Find insert position: right after the current FY heading (e.g. "FY26") ──
+    // Intuit FY runs Aug→Jul. We look for a heading matching the current FY label
+    // so new notes always land at the TOP of the correct FY section, not buried
+    // under an old "PINNED...remember" heading that may live in a previous FY.
+    var _now = new Date();
+    var _fyNum = (_now.getMonth() >= 7)
+      ? (_now.getFullYear() + 1 - 2000)
+      : (_now.getFullYear() - 2000);
+    var _fyLabel = 'FY' + _fyNum; // e.g. "FY26"
+
     var insertAfterIdx = -1;
     n = pinnedBody.getNumChildren();
     for (var i = 0; i < n; i++) {
       var el = pinnedBody.getChild(i);
       if (el.getType() === DocumentApp.ElementType.PARAGRAPH) {
-        var txt = el.asParagraph().getText();
-        if (txt.indexOf('PINNED') >= 0 &&
-           (txt.indexOf('remember') >= 0 || txt.indexOf('completed') >= 0)) {
+        var heading = el.asParagraph().getHeading();
+        var txt = el.asParagraph().getText().replace(/\*\*/g,'').trim();
+        // Match heading paragraphs that contain the current FY label
+        var isFYHeading = heading !== DocumentApp.ParagraphHeading.NORMAL
+                       && txt.toUpperCase().indexOf(_fyLabel.toUpperCase()) >= 0;
+        // Also accept plain paragraphs that ARE exactly the FY label (some docs use plain text)
+        var isPlainFY = txt.toUpperCase() === _fyLabel.toUpperCase();
+        if (isFYHeading || isPlainFY) {
           insertAfterIdx = i; break;
         }
       }
     }
+    // Fallback: if no FY26 heading found, insert at position 1
     var insertAt = insertAfterIdx >= 0 ? insertAfterIdx + 1 : 1;
 
     // ── Insert detail sub-bullet first (ends up below main after insert) ──────
