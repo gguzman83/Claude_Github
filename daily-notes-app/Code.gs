@@ -527,10 +527,15 @@ function getPinnedNotes() {
       targetList.push({ text: clean, done: isDone, section: section, date: noteDate, detail: [] });
     }
 
-    // ── Assign preItems to FY(firstFYNum + 1) ────────────────────────────────
-    // Everything NOT under an explicit FY heading belongs to the NEXT fiscal year
-    // (e.g. items above FY25 → FY26; above FY26 → FY27; etc.)
-    var currentFYLabel = firstFYNum !== null ? 'FY' + (firstFYNum + 1) : 'FY Current';
+    // ── Assign preItems to the current Intuit fiscal year ────────────────────
+    // Intuit FY runs Aug→Jul: if month >= 7 (Aug-Dec), FY = calYear+1-2000,
+    // otherwise FY = calYear-2000. This ensures newly pinned items always land
+    // in the correct FY (e.g. April 2026 → FY26) regardless of doc structure.
+    var _d = new Date();
+    var _fyNum = (_d.getMonth() >= 7)
+      ? (_d.getFullYear() + 1 - 2000)
+      : (_d.getFullYear() - 2000);
+    var currentFYLabel = 'FY' + _fyNum;
     for (var p = 0; p < preItems.length; p++) {
       preItems[p].section = currentFYLabel;
     }

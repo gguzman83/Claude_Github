@@ -1085,6 +1085,10 @@ function pinNote(cat, id) {
       if (r && r.success) {
         toast('📌 Pinned to your doc!');
         pinnedCache = null; // invalidate cache so next load is fresh
+        // If already on Pinned tab, reload immediately
+        if (document.getElementById('tab-pinned').style.display !== 'none') {
+          loadPinnedNotes();
+        }
       } else {
         toast('⚠️ Saved locally but doc write failed');
       }
