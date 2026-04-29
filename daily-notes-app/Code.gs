@@ -171,14 +171,16 @@ function appendToDoc(payloadJson) {
 
     var FONT = 'Avenir';
 
-    // ── Helper: apply markdown formatting (bold + links) to a Google Doc element ─
-    // Handles **bold** and [text](url) — strips markdown, sets plain text,
-    // then applies bold/link/color styling at the correct character positions.
-    // Returns true if any formatting was found and applied, false if plain text only.
+    // ── Helper: apply markdown formatting (bold + links + bare URLs) ────────────
+    // Handles **bold**, [text](url), and bare https:// URLs.
+    // Strips markdown syntax, sets plain text on the element, then applies
+    // bold/link/color styling at the correct character positions.
+    // Returns true if formatting was applied, false if plain text only.
     function applyMarkdownFormatting(item, rawText, font) {
-      // Match **bold** and [text](any-url) — URL pattern is permissive ([^)]+)
-      // so Slack links, file:// links, and encoded URLs all match correctly.
-      var combinedRe = /\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)]+)\)/g;
+      // Group 1: **bold**
+      // Group 2+3: [text](url) markdown link
+      // Group 4: bare https:// URL (not already inside a markdown link)
+      var combinedRe = /\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s)]+)/g;
       var parts = [];
       var lastEnd = 0;
       var match;
@@ -191,22 +193,26 @@ function appendToDoc(payloadJson) {
         if (match[1] !== undefined) {
           // **bold**
           parts.push({ text: match[1], bold: true, url: null });
-        } else {
-          // [text](url) — only treat as link if URL looks like a real URL
+          hasFormatting = true;
+        } else if (match[2] !== undefined) {
+          // [text](url) markdown link
           var url = match[3];
-          var isLink = url && (url.indexOf('http') === 0 || url.indexOf('slack') === 0 || url.indexOf('file') === 0 || url.indexOf('mailto') === 0);
-          parts.push({ text: match[2], bold: false, url: isLink ? url : null });
-          if (!isLink) { hasFormatting = true; } // still strip the markdown even if not a link
+          var validUrl = url && (url.indexOf('http') === 0 || url.indexOf('slack') === 0
+                                 || url.indexOf('file') === 0 || url.indexOf('mailto') === 0);
+          parts.push({ text: match[2], bold: false, url: validUrl ? url : null });
+          hasFormatting = true;
+        } else if (match[4] !== undefined) {
+          // bare URL — use the URL as both the display text and the link
+          parts.push({ text: match[4], bold: false, url: match[4] });
+          hasFormatting = true;
         }
-        hasFormatting = true;
         lastEnd = match.index + match[0].length;
       }
       if (lastEnd < rawText.length) {
         parts.push({ text: rawText.substring(lastEnd), bold: false, url: null });
       }
       if (!hasFormatting) return false;
-      // Set plain text and apply per-segment formatting
-      var plainText = parts.map(function(p){ return p.text; }).join('');
+      var plainText = parts.map(function(p) { return p.text; }).join('');
       var textEl = item.editAsText();
       textEl.setText(plainText);
       textEl.setFontFamily(font);
@@ -215,84 +221,99 @@ function appendToDoc(payloadJson) {
       textEl.setUnderline(false);
       var pos = 0;
       for (var i = 0; i < parts.length; i++) {
+        if (parts[i].text.length === 0) continue;
         var end = pos + parts[i].text.length - 1;
         if (parts[i].bold) {
           textEl.setBold(pos, end, true);
         }
         if (parts[i].url) {
-          textEl.setLinkUrl(pos, end, parts[i].url);
-          textEl.setForegroundColor(pos, end, '#1155CC');
-          textEl.setUnderline(pos, end, true);
+          try {
+            textEl.setLinkUrl(pos, end, parts[i].url);
+            textEl.setForegroundColor(pos, end, '#1155CC');
+            textEl.setUnderline(pos, end, true);
+          } catch(linkErr) {
+            Logger.log('setLinkUrl failed for url: ' + parts[i].url + ' err: ' + linkErr.message);
+          }
         }
         pos += parts[i].text.length;
       }
       return true;
     }
 
+    // ── Helper: write one line as a list item with formatting applied ─────────
+    function writeLine(text, nestingLevel, glyphType, spacingBefore, spacingAfter, strikethrough) {
+      if (!text || !text.trim()) return null;
+      // Strip leading bullet characters that would double up (-, *, •)
+      var clean = text.trim().replace(/^[-*•]\s+/, '');
+      if (!clean) return null;
+      var item = body.appendListItem(clean);
+      item.setNestingLevel(nestingLevel);
+      item.setGlyphType(glyphType);
+      item.setLineSpacing(1.15);
+      item.setSpacingBefore(spacingBefore);
+      item.setSpacingAfter(spacingAfter);
+      if (!applyMarkdownFormatting(item, clean, FONT)) {
+        var t = item.editAsText();
+        t.setFontFamily(FONT);
+        t.setBold(false);
+        t.setItalic(false);
+      }
+      if (strikethrough) item.editAsText().setStrikethrough(true);
+      return item;
+    }
+
     // ── Helper: write one section ─────────────────────────────────────────────
-    // A blank paragraph before each section breaks the list context so numbering
-    // resets to "1." — matching your doc's existing format.
+    // Section header → bold paragraph (not a list item, so numbering resets to 1)
+    // Main note lines → DIGIT numbered bullets at level 0
+    // Continuation lines of multi-line notes → DISC bullets at level 1
+    // Sub-detail lines → DISC bullets at level 1
     function writeSection(label, notes) {
       if (!notes || notes.length === 0) return;
-
-      // Filter to only notes not already in the doc
       var newNotes = notes.filter(function(n) { return !alreadyInDoc(n.text); });
-      if (newNotes.length === 0) return; // nothing new to add
+      if (newNotes.length === 0) return;
 
-      // Two blank lines between sections for clear visual separation
-      body.appendParagraph('');
-      body.appendParagraph('');
+      // Blank paragraph breaks the list context so numbering resets to 1
+      var spacer = body.appendParagraph('');
+      spacer.setSpacingBefore(0);
+      spacer.setSpacingAfter(0);
 
-      // Section header — only write if not already present
+      // Section header as a bold paragraph — NOT a list item
       if (!alreadyInDoc(label)) {
-        var header = body.appendListItem(label);
-        header.setNestingLevel(0);
-        header.setGlyphType(DocumentApp.GlyphType.DIGIT);
-        header.setLineSpacing(1.15);   // 1.15 line spacing
-        header.setSpacingBefore(12);
-        header.setSpacingAfter(10);   // "Add space after list item"
-        var headerText = header.editAsText();
-        headerText.setFontFamily(FONT);
-        headerText.setBold(true);
-        headerText.setItalic(false);
-        headerText.setUnderline(false);
+        var header = body.appendParagraph(label);
+        header.setLineSpacing(1.15);
+        header.setSpacingBefore(14);
+        header.setSpacingAfter(4);
+        var ht = header.editAsText();
+        ht.setFontFamily(FONT);
+        ht.setBold(true);
+        ht.setItalic(false);
+        ht.setUnderline(false);
       }
 
-      // Items — only write notes not already in the doc
       for (var i = 0; i < newNotes.length; i++) {
-        var item = body.appendListItem(newNotes[i].text);
-        item.setNestingLevel(1);
-        item.setGlyphType(DocumentApp.GlyphType.DIGIT);
-        if (!applyMarkdownFormatting(item, newNotes[i].text, FONT)) {
-          item.editAsText()
-            .setFontFamily(FONT)
-            .setBold(false)
-            .setItalic(false);
-        }
-        item.setLineSpacing(1.15);     // 1.15 line spacing
-        item.setSpacingBefore(6);
-        item.setSpacingAfter(10);     // "Add space after list item"
-        if (newNotes[i].done) item.editAsText().setStrikethrough(true);
+        var noteRaw  = newNotes[i].text || '';
+        var isDone   = !!newNotes[i].done;
+        // Split multi-line text — each line becomes its own doc element
+        // so character offsets stay correct and links always apply cleanly.
+        var textLines = noteRaw.split('\n')
+                               .map(function(l) { return l.trim(); })
+                               .filter(Boolean);
+        if (textLines.length === 0) continue;
 
-        // Sub-details — one sub-bullet per line, level 2 → "      i. detail"
+        // First line → numbered bullet (DIGIT, level 0)
+        writeLine(textLines[0], 0, DocumentApp.GlyphType.DIGIT, 5, 2, isDone);
+
+        // Additional lines of the same note → bullet (DISC, level 1)
+        for (var li = 1; li < textLines.length; li++) {
+          writeLine(textLines[li], 1, DocumentApp.GlyphType.DISC, 2, 2, isDone);
+        }
+
+        // Sub-detail lines → bullet (DISC, level 1)
+        // Google Docs has no ↳ glyph — regular bullet matches the preview intent
         if (newNotes[i].detail) {
           var detailLines = newNotes[i].detail.split('\n');
           for (var d = 0; d < detailLines.length; d++) {
-            var line = detailLines[d].trim();
-            if (!line) continue;
-            var sub = body.appendListItem(line);
-            sub.setNestingLevel(2);
-            sub.setGlyphType(DocumentApp.GlyphType.ROMAN_LOWER);
-            if (!applyMarkdownFormatting(sub, line, FONT)) {
-              sub.editAsText()
-                .setFontFamily(FONT)
-                .setBold(false)
-                .setItalic(false);
-            }
-            sub.setLineSpacing(1.15);  // 1.15 line spacing
-            sub.setSpacingBefore(3);
-            sub.setSpacingAfter(8);   // "Add space after list item"
-            if (newNotes[i].done) sub.editAsText().setStrikethrough(true);
+            writeLine(detailLines[d], 1, DocumentApp.GlyphType.DISC, 2, 2, isDone);
           }
         }
       }
@@ -311,15 +332,14 @@ function appendToDoc(payloadJson) {
       return !alreadyInDoc(timeStr + '  ' + e.text);
     });
     if (newLive.length > 0) {
-      body.appendParagraph('');
-      body.appendParagraph('');
-      if (!alreadyInDoc('Notes:')) {
-        var liveHdr = body.appendListItem('Notes:');
-        liveHdr.setNestingLevel(0);
-        liveHdr.setGlyphType(DocumentApp.GlyphType.DIGIT);
-        liveHdr.setLineSpacing(1.15);   // 1.15 line spacing
-        liveHdr.setSpacingBefore(12);
-        liveHdr.setSpacingAfter(10);   // "Add space after list item"
+      var liveSpacer = body.appendParagraph('');
+      liveSpacer.setSpacingBefore(0);
+      liveSpacer.setSpacingAfter(0);
+      if (!alreadyInDoc('Live Notes:')) {
+        var liveHdr = body.appendParagraph('Live Notes:');
+        liveHdr.setLineSpacing(1.15);
+        liveHdr.setSpacingBefore(14);
+        liveHdr.setSpacingAfter(4);
         var liveHdrText = liveHdr.editAsText();
         liveHdrText.setFontFamily(FONT);
         liveHdrText.setBold(true);
@@ -328,19 +348,13 @@ function appendToDoc(payloadJson) {
       }
       for (var i = 0; i < newLive.length; i++) {
         var timeStr = Utilities.formatDate(new Date(newLive[i].ts), tz, 'h:mm a');
-        var fullText = timeStr + '  ' + newLive[i].text;
-        var item = body.appendListItem(fullText);
-        item.setNestingLevel(1);
-        item.setGlyphType(DocumentApp.GlyphType.DIGIT);
-        if (!applyMarkdownFormatting(item, fullText, FONT)) {
-          item.editAsText()
-            .setFontFamily(FONT)
-            .setBold(false)
-            .setItalic(false);
+        var liveLines = (timeStr + '  ' + newLive[i].text).split('\n')
+                          .map(function(l){ return l.trim(); }).filter(Boolean);
+        if (liveLines.length === 0) continue;
+        writeLine(liveLines[0], 0, DocumentApp.GlyphType.DIGIT, 5, 2, false);
+        for (var ll = 1; ll < liveLines.length; ll++) {
+          writeLine(liveLines[ll], 1, DocumentApp.GlyphType.DISC, 2, 2, false);
         }
-        item.setLineSpacing(1.15);      // 1.15 line spacing
-        item.setSpacingBefore(6);
-        item.setSpacingAfter(10);      // "Add space after list item"
       }
     }
 
