@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Weekly Quiz",
+  "schemaVersion": 1,
+  "description": "MTV Weekly Quiz — identity gate, take quiz, submit a question. Reads from Smartsheet, writes responses. One entry per person per week enforced.",
+  "mcpTools": [
+    "mcp__aab8ef50-5bd3-4d06-bb8c-e8bbcfccadbc__get_sheet_summary",
+    "mcp__aab8ef50-5bd3-4d06-bb8c-e8bbcfccadbc__add_rows"
+  ],
+  "mcpServerNames": [
+    "Smartsheet",
+    "Smartsheet"
+  ]
+}
+</script>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Weekly Quiz</title>
+<style>
+:root{--bg:#0a0a0f;--surface:#13131a;--card:#1a1a24;--border:#2a2a3a;--accent:#6c63ff;--text:#e8e8f0;--muted:#7070a0;--success:#43e97b;--error:#ff6b6b;--warn:#f7971e;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:196px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 0;position:fixed;top:0;left:0;bottom:0;}
+.logo{padding:0 16px 18px;border-bottom:1px solid var(--border);font-weight:800;font-size:14px;letter-spacing:.5px;}
+.logo span{color:var(--accent);}
+.nav{display:flex;flex-direction:column;gap:2px;padding:12px 8px;flex:1;}
+.nav-btn{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);border:none;background:none;width:100%;text-align:left;transition:all .15s;}
+.nav-btn:hover{background:var(--card);color:var(--text);}
+.nav-btn.active{background:rgba(108,99,255,.15);color:var(--accent);}
+.sidebar-foot{padding:12px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);font-family:monospace;}
+.main{margin-left:196px;flex:1;padding:28px;}
+.page{display:none;}.page.active{display:block;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;}
+.btn{padding:9px 18px;border-radius:8px;border:none;cursor:pointer;font-weight:500;font-size:13px;transition:all .15s;}
+.btn-primary{background:var(--accent);color:#fff;}.btn-primary:hover{background:#5a52e0;}
+.btn-secondary{background:var(--border);color:var(--text);}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+input,select,textarea{background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:9px 12px;width:100%;outline:none;transition:border-color .15s;}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+textarea{resize:vertical;min-height:70px;}
+label{font-size:12px;color:var(--muted);margin-bottom:4px;display:block;font-weight:500;}
+.fg{margin-bottom:13px;}
+.flash{position:fixed;top:18px;right:18px;padding:11px 16px;border-radius:10px;font-size:13px;font-weight:500;z-index:9999;max-width:300px;animation:fi .2s ease;}
+@keyframes fi{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:none;}}
+.flash-s{background:rgba(67,233,123,.15);color:var(--success);border:1px solid rgba(67,233,123,.3);}
+.flash-e{background:rgba(255,107,107,.15);color:var(--error);border:1px solid rgba(255,107,107,.3);}
+.flash-i{background:rgba(108,99,255,.15);color:var(--accent);border:1px solid rgba(108,99,255,.3);}
+.pb-wrap{background:var(--border);border-radius:99px;height:4px;margin-bottom:24px;overflow:hidden;}
+.pb{height:100%;background:var(--accent);border-radius:99px;transition:width .3s;}
+.q-wrap{max-width:660px;margin:0 auto;}
+.q-num{font-size:11px;color:var(--muted);margin-bottom:8px;font-family:monospace;}
+.q-text{font-size:17px;font-weight:500;line-height:1.5;margin-bottom:18px;}
+.answers{display:flex;flex-direction:column;gap:9px;}
+.ans-btn{padding:13px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;text-align:left;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:11px;}
+.ans-btn:hover:not(:disabled){border-color:var(--accent);background:rgba(108,99,255,.08);}
+.ans-btn .ltr{width:26px;height:26px;border-radius:50%;background:var(--border);font-family:monospace;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ans-btn.correct{border-color:var(--success);background:rgba(67,233,123,.1);}
+.ans-btn.correct .ltr{background:var(--success);color:#000;}
+.ans-btn.wrong{border-color:var(--error);background:rgba(255,107,107,.1);}
+.ans-btn.wrong .ltr{background:var(--error);color:#fff;}
+.ans-btn:disabled{cursor:default;}
+.exp-box{margin-top:14px;padding:12px 14px;background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.2);border-radius:10px;font-size:13px;line-height:1.6;color:#c0c0e0;}
+.empty{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty .big{font-size:48px;margin-bottom:12px;}
+.empty h3{font-size:18px;font-weight:600;color:var(--text);margin-bottom:8px;}
+.score-big{font-size:60px;font-weight:800;color:var(--accent);line-height:1;}
+.lb-stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+.lb-stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;}
+.lb-stat-val{font-weight:800;font-size:24px;color:var(--accent);}
+.lb-stat-lbl{font-size:11px;color:var(--muted);margin-top:4px;font-family:monospace;}
+.lb-tabs{display:flex;gap:4px;margin-bottom:14px;}
+.lb-tab{padding:7px 14px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;color:var(--muted);transition:all .15s;}
+.lb-tab.active{background:var(--card);color:var(--text);}
+.lb-tab:hover:not(.active){color:var(--text);}
+.lb-card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+table{width:100%;border-collapse:collapse;}
+th,td{padding:10px 14px;text-align:left;font-size:13px;border-bottom:1px solid var(--border);}
+th{font-family:monospace;font-size:11px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.5px;background:var(--surface);}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(108,99,255,.04);}
+.rb{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-family:monospace;font-size:11px;font-weight:700;}
+.r1{background:#f7971e;color:#000;}.r2{background:#aaa;color:#000;}.r3{background:#cd7f32;color:#fff;}.rn{background:var(--border);color:var(--muted);}
+.bw{background:var(--border);border-radius:99px;height:6px;width:70px;display:inline-block;vertical-align:middle;margin-left:8px;overflow:hidden;}
+.bf{height:100%;border-radius:99px;}
+.rbtn{background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:5px 11px;cursor:pointer;font-size:12px;}
+.rbtn:hover{color:var(--text);border-color:var(--accent);}
+</style>
+</head>
+<body>
+<div class="shell">
+<nav class="sidebar">
+  <div class="logo">Weekly <span>QUIZ</span></div>
+  <div class="nav">
+    <button class="nav-btn" id="nav-take" onclick="goTake()">🎯 Take Quiz</button>
+    <button class="nav-btn" id="nav-submit" onclick="showPage('submit')">✏️ Submit Question</button>
+    <button class="nav-btn" id="nav-leaderboard" onclick="goLeaderboard()">🏆 Leaderboard</button>
+  </div>
+  <div class="sidebar-foot" id="week-foot"></div>
+</nav>
+<main class="main">
+
+  <div class="page active" id="page-identity">
+    <div style="max-width:400px;margin:80px auto;text-align:center;">
+      <div style="font-size:52px;margin-bottom:14px;">🎯</div>
+      <div style="font-weight:800;font-size:26px;margin-bottom:6px;">Weekly Quiz</div>
+      <div style="color:var(--muted);font-size:14px;margin-bottom:28px;">Who's playing this week?</div>
+      <div class="card" style="text-align:left;">
+        <div class="fg"><label>Select Your Name</label>
+          <select id="id-select" onchange="document.getElementById('id-new').value=''">
+            <option value="">— Choose your name —</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin:12px 0;color:var(--muted);font-size:12px;">
+          <div style="flex:1;height:1px;background:var(--border);"></div>or<div style="flex:1;height:1px;background:var(--border);"></div>
+        </div>
+        <div class="fg"><label>New Contestant</label>
+          <input id="id-new" placeholder="Enter your name…" onkeydown="if(event.key==='Enter')identSubmit()" oninput="if(this.value)document.getElementById('id-select').value=''">
+        </div>
+        <button class="btn btn-primary" onclick="identSubmit()" style="width:100%;">Let's Go →</button>
+      </div>
+      <div style="margin-top:16px;">
+        <button class="btn" style="background:none;color:var(--muted);font-size:12px;" onclick="goLeaderboard()">View Leaderboard without logging in →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="page-take"><div id="take-inner"><div class="empty"><div class="big">⏳</div><h3>Loading…</h3></div></div></div>
+
+  <div class="page" id="page-submit">
+    <div style="font-weight:800;font-size:22px;margin-bottom:22px;">✏️ Submit a Question</div>
+    <div class="card" style="max-width:580px;">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:18px;">Got a great question? Submit for admin review — approved questions go into future quizzes.</p>
+      <div class="fg"><label>Your Name</label><input id="sub-name" placeholder="Your name"></div>
+      <div class="fg"><label>Question</label><textarea id="sub-q" rows="3" placeholder="Write a clear, specific question…"></textarea></div>
+      <div class="fg"><label>Correct Answer ✓</label><input id="sub-cor" placeholder="The right answer"></div>
+      <div class="fg"><label>Wrong Answer 1</label><input id="sub-w1" placeholder="Plausible distractor"></div>
+      <div class="fg"><label>Wrong Answer 2</label><input id="sub-w2" placeholder="Plausible distractor"></div>
+      <div class="fg"><label>Wrong Answer 3</label><input id="sub-w3" placeholder="Plausible distractor"></div>
+      <div class="fg"><label>Explanation (optional)</label><textarea id="sub-exp" rows="2" placeholder="Brief explanation of the correct answer…"></textarea></div>
+      <button class="btn btn-primary" id="sub-btn" onclick="submitQ()">Submit for Review</button>
+    </div>
+  </div>
+
+  <div class="page" id="page-leaderboard">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <div style="font-weight:800;font-size:22px;">🏆 Leaderboard</div>
+      <button class="rbtn" onclick="reloadLb()">↻ Refresh</button>
+    </div>
+    <div style="font-family:monospace;font-size:12px;color:var(--muted);margin-bottom:20px;" id="lb-week-tag">—</div>
+    <div class="lb-stat-row">
+      <div class="lb-stat-card"><div class="lb-stat-val" id="lb-sp">—</div><div class="lb-stat-lbl">Participants</div></div>
+      <div class="lb-stat-card"><div class="lb-stat-val" id="lb-sa">—</div><div class="lb-stat-lbl">Avg Score</div></div>
+      <div class="lb-stat-card"><div class="lb-stat-val" id="lb-sc">—</div><div class="lb-stat-lbl">Avg Accuracy</div></div>
+    </div>
+    <div class="lb-tabs">
+      <button class="lb-tab active" id="lb-tab-week" onclick="setLbTab('week',this)">This Week</button>
+      <button class="lb-tab" id="lb-tab-all" onclick="setLbTab('all',this)">All-Time</button>
+    </div>
+    <div class="lb-card" id="lb-content"><div class="empty"><div class="big">⏳</div><h3>Loading…</h3></div></div>
+  </div>
+
+</main>
+</div>
+<script>
+const SS='mcp__aab8ef50-5bd3-4d06-bb8c-e8bbcfccadbc__';
+const QBANK=819519384670084,PQS=7012673246941060,LBR=7204108529258372;
+const COL_LB={entry:4248706192019332,week:8752305819389828,name:167319029714820,subm:4670918657085316,q1:2419118843400068,q2:6922718470770564,q3:1293218936557444,q4:5796818563927940,q5:3545018750242692,correct:8048618377613188,total:730268983136132,pct:5233868610506628,pts:2982068796821380};
+const COL_QB={qid:1745152172658564,q:6248751800029060,cor:3996951986343812,w1:8500551613714308,w2:337777289105284,w3:4841376916475780,exp:7093176730161028,status:1463677195947908,qpos:5967276823318404,usedIn:3715477009633156,by:5749841016950660};
+const KNOWN_NAMES_SEED=['Ariel I.','G-Man','John M','Mo'];
+
+let currentUser=null,currentQuiz=null,qIdx=0,answers=[],locked=false,_saving=false;
+
+function weekKey(d=new Date()){const u=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const dow=u.getUTCDay()||7;u.setUTCDate(u.getUTCDate()-dow+1);const y=u.getUTCFullYear();const j4=new Date(Date.UTC(y,0,4));const wn=Math.ceil(((u-j4)/864e5+j4.getUTCDay()+1)/7);return`${y}-W${String(wn).padStart(2,'0')}`;}
+const W=weekKey();
+
+const _m=new Map();let _d=false;
+function _r(p){if(_d)return Promise.reject();return Promise.race([Promise.resolve(p),new Promise((_,r)=>setTimeout(()=>{_d=true;r();},1500))]);}
+async function saveS(v){_m.set('s',JSON.stringify(v));try{await _r(window.storage.set('cus',JSON.stringify(v),false));}catch(e){}}
+async function loadS(){try{const r=await _r(window.storage.get('cus',false));if(r?.value)return JSON.parse(r.value);}catch(e){}const m=_m.get('s');return m?JSON.parse(m):null;}
+
+function waitForCowork(){
+  return new Promise(resolve=>{
+    if(window.cowork)return resolve();
+    const iv=setInterval(()=>{if(window.cowork){clearInterval(iv);resolve();}},50);
+  });
+}
+
+async function ss(tool,args){
+  await waitForCowork();
+  const r=await window.cowork.callMcpTool(SS+tool,args);
+  if(r.isError)throw new Error('SS error: '+(r.content?.[0]?.text||''));
+  const raw=r.content[0].text||'';
+  try{const p=JSON.parse(raw);return p.result||raw;}catch(e){return raw;}
+}
+
+function parseRows(text){const rows=[];let cur=null;for(const line of text.split('\n')){const rm=line.match(/^ {2}- row_id: +(\d+)/);if(rm){if(cur)rows.push(cur);cur={id:+rm[1],c:{}};continue;}if(cur){const cm=line.match(/^ {6}(.+?)\t(.*)\t\S+$/);if(cm){let v=cm[2];if(v.length>1&&v.startsWith('"')&&v.endsWith('"'))v=v.slice(1,-1);cur.c[cm[1]]=v;}}}if(cur)rows.push(cur);return rows;}
+
+function normPct(v){const s=String(v||'').replace(/%/g,'').replace(/"/g,'').trim();const n=parseFloat(s)||0;return n>0&&n<=1?Math.round(n*100):Math.round(n);}
+function fmtDate(v){if(!v||v==='—')return'—';const d=new Date(v);if(isNaN(d))return'—';return`${d.getMonth()+1}/${d.getDate()}/${String(d.getFullYear()).slice(-2)}`;}
+function flash(msg,t='i'){const el=document.createElement('div');el.className=`flash flash-${t}`;el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),t==='e'?7000:3500);}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+let _lbNames=[...KNOWN_NAMES_SEED];
+
+function populateDropdown(names){
+  _lbNames=names;
+  const sel=document.getElementById('id-select');
+  if(!sel)return;
+  const current=sel.value;
+  sel.innerHTML='<option value="">— Choose your name —</option>';
+  names.forEach(n=>{const o=document.createElement('option');o.value=o.textContent=n;sel.appendChild(o);});
+  if(current)sel.value=current;
+}
+
+async function prefetchNames(){
+  try{
+    const text=await ss('get_sheet_summary',{sheet_id:LBR});
+    const rows=parseRows(text).filter(r=>r.c['Tech Name']&&r.c['Entry ID']!=='ADMIN');
+    const names=[...new Set([...KNOWN_NAMES_SEED,...rows.map(r=>r.c['Tech Name'])])].sort();
+    populateDropdown(names);
+  }catch(e){populateDropdown([...KNOWN_NAMES_SEED]);}
+}
+
+function showPage(n){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));document.getElementById('page-'+n)?.classList.add('active');document.getElementById('nav-'+n)?.classList.add('active');}
+function goTake(){showPage('take');renderTake();}
+
+let _dataP=null,_weekLb=[];
+function loadAll(){
+  if(_dataP)return _dataP;
+  _dataP=(async()=>{
+    const [pqText,qbText,lbText]=await Promise.all([
+      ss('get_sheet_summary',{sheet_id:PQS,filters:[{column_name:'Week',column_value:W},{column_name:'Status',column_value:'published'}]}),
+      ss('get_sheet_summary',{sheet_id:QBANK}),
+      ss('get_sheet_summary',{sheet_id:LBR,filters:[{column_name:'Week',column_value:W}]})
+    ]);
+    const pqRows=parseRows(pqText);
+    const qbRows=parseRows(qbText);
+    const qbMap=new Map(qbRows.map(r=>[r.c['Question ID'],r]));
+    const rawLb=parseRows(lbText).filter(r=>r.c['Entry ID']&&r.c['Entry ID']!=='ADMIN');
+    const lbMap=new Map();
+    for(const r of rawLb){const n=r.c['Tech Name'];const ex=lbMap.get(n);if(!ex||(+r.c['Questions Correct']||0)>(+ex.c['Questions Correct']||0))lbMap.set(n,r);}
+    _weekLb=[...lbMap.values()];
+    if(pqRows.length>0){
+      const pq=pqRows[0];
+      const ids=[pq.c['Q1 ID'],pq.c['Q2 ID'],pq.c['Q3 ID'],pq.c['Q4 ID'],pq.c['Q5 ID']].filter(Boolean);
+      const questions=ids.map(id=>{const r=qbMap.get(id);if(!r)return null;return{questionId:id,question:r.c['Question']||'',correctAnswer:r.c['Correct Answer']||'',wrongAnswers:[r.c['Wrong Answer 1'],r.c['Wrong Answer 2'],r.c['Wrong Answer 3']].filter(Boolean),explanation:r.c['Explanation']||''};}).filter(Boolean);
+      if(questions.length>0)currentQuiz={week:W,questions};
+    }
+  })();
+  return _dataP;
+}
+
+async function renderTake(){
+  const el=document.getElementById('take-inner');
+  if(!currentUser){showPage('identity');return;}
+  el.innerHTML='<div class="empty"><div class="big">⏳</div><h3>Loading…</h3></div>';
+  try{await loadAll();}catch(e){el.innerHTML='<div class="empty"><div class="big">⚠️</div><h3>Could not load quiz</h3><p style="font-size:13px;margin-top:8px;">'+esc(String(e))+'</p></div>';return;}
+  if(!currentQuiz){
+    el.innerHTML=`<div class="empty"><div class="big">📭</div><h3>No quiz yet for ${W}</h3><p style="margin-top:8px;font-size:14px;color:var(--text);">Check back soon!</p><div style="margin-top:20px;"><button class="btn btn-primary" onclick="showPage('submit')">Submit a Question →</button></div></div>`;
+    return;
+  }
+  const existing=_weekLb.find(r=>r.c['Tech Name']===currentUser);
+  if(existing){showResults([],+existing.c['Questions Correct']||0,+existing.c['Questions Total']||currentQuiz.questions.length,+existing.c['Correct %']||0,true);return;}
+  _saving=false;qIdx=0;answers=[];showQ();
+}
+
+function stableShuffle(arr,seed){const a=[...arr];let s=seed;for(let i=a.length-1;i>0;i--){s=(s*1664525+1013904223)&0xffffffff;const j=Math.abs(s)%(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;}
+function getSeed(str){let h=0;for(const c of str)h=(Math.imul(31,h)+c.charCodeAt(0))|0;return Math.abs(h);}
+
+function showQ(){
+  const q=currentQuiz.questions[qIdx],tot=currentQuiz.questions.length;
+  const seed=getSeed(`${currentUser}${W}${qIdx}`);
+  const opts=stableShuffle([q.correctAnswer,...q.wrongAnswers],seed);
+  const ltrs=['A','B','C','D'];
+  document.getElementById('take-inner').innerHTML=`
+    <div class="q-wrap">
+      <div style="margin-bottom:20px;"><div style="font-weight:800;font-size:20px;margin-bottom:4px;">This Week's Quiz</div><div style="font-family:monospace;font-size:12px;color:var(--muted);">${W} · ${esc(currentUser)}</div></div>
+      <div class="pb-wrap"><div class="pb" style="width:${qIdx/tot*100}%"></div></div>
+      <div class="card">
+        <div class="q-num">Question ${qIdx+1} of ${tot}</div>
+        <div class="q-text">${esc(q.question)}</div>
+        <div class="answers" id="ans-wrap">
+          ${opts.map((o,i)=>`<button class="ans-btn" onclick="pick('${esc(o)}','${esc(q.correctAnswer)}',${i})"><span class="ltr">${ltrs[i]}</span><span>${esc(o)}</span></button>`).join('')}
+        </div>
+        <div id="exp-wrap"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:18px;">
+          <button class="btn btn-primary" id="next-btn" style="display:none;" onclick="next(this)">${qIdx+1<tot?'Next →':'See Results'}</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function pick(chosen,correct,idx){
+  if(locked)return;locked=true;
+  const ok=chosen===correct;
+  answers.push(ok?1:0);
+  document.querySelectorAll('.ans-btn').forEach((b,i)=>{b.disabled=true;const t=b.querySelector('span:last-child').textContent;if(t===correct)b.classList.add('correct');else if(i===idx&&!ok)b.classList.add('wrong');});
+  const q=currentQuiz.questions[qIdx];
+  if(q.explanation)document.getElementById('exp-wrap').innerHTML=`<div class="exp-box"><strong>📖</strong> ${esc(q.explanation)}</div>`;
+  document.getElementById('next-btn').style.display='inline-flex';
+  setTimeout(()=>locked=false,300);
+}
+
+async function next(btn){
+  if(_saving)return;
+  if(btn)btn.disabled=true;
+  qIdx++;
+  if(qIdx>=currentQuiz.questions.length){await saveResults();}
+  else{locked=false;showQ();}
+}
+
+async function saveResults(){
+  if(_saving)return;
+  _saving=true;
+  const score=answers.reduce((a,b)=>a+b,0),tot=currentQuiz.questions.length,pct=Math.round(score/tot*100);
+  const entryId=`${W}:${currentUser}`,ts=new Date().toISOString();
+  try{
+    const freshText=await ss('get_sheet_summary',{sheet_id:LBR});
+    const freshRows=parseRows(freshText).filter(r=>r.c['Entry ID']&&r.c['Entry ID']!=='ADMIN');
+    const alreadyIn=freshRows.some(r=>r.c['Entry ID']===entryId||(r.c['Tech Name']===currentUser&&r.c['Week']===W));
+    if(alreadyIn){showResults(answers,score,tot,pct,true);return;}
+  }catch(e){}
+  const checkCols=[COL_LB.q1,COL_LB.q2,COL_LB.q3,COL_LB.q4,COL_LB.q5];
+  const cells=[
+    {columnId:COL_LB.entry,value:entryId},{columnId:COL_LB.week,value:W},{columnId:COL_LB.name,value:currentUser},
+    {columnId:COL_LB.subm,value:ts},...answers.map((a,i)=>({columnId:checkCols[i],value:a===1})),
+    {columnId:COL_LB.correct,value:score},{columnId:COL_LB.total,value:tot},{columnId:COL_LB.pct,value:pct},{columnId:COL_LB.pts,value:score}
+  ];
+  try{
+    await ss('add_rows',{sheet_id:LBR,rows:[{cells,toBottom:true}]});
+    _weekLb.push({id:0,c:{'Tech Name':currentUser,'Questions Correct':String(score),'Questions Total':String(tot),'Correct %':String(pct),'Entry ID':entryId,'Week':W}});
+    _lbP=null;
+  }catch(e){flash('Smartsheet write failed: '+e.message,'e');}
+  showResults(answers,score,tot,pct,false);
+}
+
+function showResults(ans,score,tot,pct,already){
+  const e=pct===100?'🏆':pct>=80?'🎉':pct>=60?'👍':'💪';
+  document.getElementById('take-inner').innerHTML=`
+    <div style="max-width:460px;margin:40px auto;text-align:center;">
+      <div style="font-size:52px;margin-bottom:12px;">${e}</div>
+      <div class="score-big">${score}/${tot}</div>
+      <div style="color:var(--muted);font-size:14px;margin-top:4px;margin-bottom:18px;">${pct}% · ${already?'Already submitted this week':'Submitted!'}</div>
+      ${currentQuiz?.questions?.length?`<div class="card" style="text-align:left;margin-bottom:14px;">${(ans.length?ans:Array(tot).fill(null)).map((a,i)=>`<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;"><span style="color:${a===1?'var(--success)':a===0?'var(--error)':'var(--muted)'};font-size:15px;">${a===1?'✓':a===0?'✗':'·'}</span><span style="color:var(--muted);font-family:monospace;font-size:11px;">Q${i+1}</span><span style="flex:1;">${esc(currentQuiz.questions[i]?.question||'')}</span></div>`).join('')}</div>`:''}
+      ${!already?'<div style="padding:10px 14px;background:rgba(67,233,123,.07);border:1px solid rgba(67,233,123,.2);border-radius:9px;font-size:12px;color:#6ab88a;margin-top:10px;">✓ Score saved to Leaderboard.</div>':''}
+      <div style="margin-top:18px;"><button class="btn btn-primary" onclick="goLeaderboard()">View Leaderboard →</button></div>
+    </div>`;
+}
+
+async function submitQ(){
+  const name=document.getElementById('sub-name').value.trim(),q=document.getElementById('sub-q').value.trim(),cor=document.getElementById('sub-cor').value.trim();
+  const w1=document.getElementById('sub-w1').value.trim(),w2=document.getElementById('sub-w2').value.trim(),w3=document.getElementById('sub-w3').value.trim(),exp=document.getElementById('sub-exp').value.trim();
+  if(!name||!q||!cor||!w1||!w2||!w3){flash('Fill in all required fields','e');return;}
+  const btn=document.getElementById('sub-btn');btn.disabled=true;btn.textContent='Submitting…';
+  try{
+    const qbText=await ss('get_sheet_summary',{sheet_id:QBANK,columns:['Question ID']});
+    const rows=parseRows(qbText);
+    const max=rows.reduce((m,r)=>{const n=parseInt((r.c['Question ID']||'').replace(/\D/g,''));return isNaN(n)?m:Math.max(m,n);},0);
+    const newId=`Q${String(max+1).padStart(2,'0')}`;
+    await ss('add_rows',{sheet_id:QBANK,rows:[{cells:[
+      {columnId:COL_QB.qid,value:newId},{columnId:COL_QB.q,value:q},{columnId:COL_QB.cor,value:cor},
+      {columnId:COL_QB.w1,value:w1},{columnId:COL_QB.w2,value:w2},{columnId:COL_QB.w3,value:w3},
+      {columnId:COL_QB.exp,value:exp},{columnId:COL_QB.status,value:'pending review'},{columnId:COL_QB.by,value:name}
+    ],toBottom:true}]});
+    flash(`${newId} submitted for review!`,'s');
+    ['sub-name','sub-q','sub-cor','sub-w1','sub-w2','sub-w3','sub-exp'].forEach(id=>document.getElementById(id).value='');
+  }catch(e){flash('Submit failed: '+e.message,'e');}
+  finally{btn.disabled=false;btn.textContent='Submit for Review';}
+}
+
+let _lbTab='week',_lbRows=null,_lbP=null;
+
+function goLeaderboard(){
+  showPage('leaderboard');
+  document.getElementById('lb-week-tag').textContent=W;
+  if(!_lbRows)loadLeaderboard();
+  else renderLb(_lbRows);
+}
+
+function reloadLb(){_lbRows=null;_lbP=null;document.getElementById('lb-content').innerHTML='<div class="empty"><div class="big">⏳</div><h3>Loading…</h3></div>';loadLeaderboard();}
+function setLbTab(t,el){_lbTab=t;document.querySelectorAll('.lb-tab').forEach(x=>x.classList.remove('active'));el.classList.add('active');if(_lbRows)renderLb(_lbRows);}
+
+function loadLeaderboard(){
+  if(_lbP)return _lbP;
+  _lbP=(async()=>{
+    try{
+      const text=await ss('get_sheet_summary',{sheet_id:LBR});
+      _lbRows=parseRows(text).filter(r=>r.c['Entry ID']&&r.c['Entry ID']!=='ADMIN'&&r.c['Tech Name']);
+      renderLb(_lbRows);
+    }catch(e){
+      document.getElementById('lb-content').innerHTML='<div class="empty"><div class="big">⚠️</div><h3>Load failed</h3><p style="font-size:13px;margin-top:8px;">'+esc(String(e))+'</p></div>';
+    }
+  })();
+  return _lbP;
+}
+
+function dedupLb(rows){const map=new Map();for(const r of rows){const n=r.c['Tech Name'];if(!n)continue;const ex=map.get(n);if(!ex||(+r.c['Questions Correct']||0)>(+ex.c['Questions Correct']||0))map.set(n,r);}return[...map.values()];}
+
+function renderLb(all){
+  if(_lbTab==='week'){
+    const rows=dedupLb(all.filter(r=>r.c['Week']===W))
+      .sort((a,b)=>
+        normPct(b.c['Correct %'])-normPct(a.c['Correct %']) ||
+        (+a.c['AnswerSpeed']||Infinity)-(+b.c['AnswerSpeed']||Infinity)
+      );
+    const p=rows.length;
+    const sa=p?(rows.reduce((s,r)=>s+(+r.c['Questions Correct']||0),0)/p).toFixed(1):'—';
+    const avgPct=p?Math.round(rows.reduce((s,r)=>s+normPct(r.c['Correct %']),0)/p)+'%':'—';
+    document.getElementById('lb-sp').textContent=p;document.getElementById('lb-sa').textContent=sa;document.getElementById('lb-sc').textContent=avgPct;
+    if(!rows.length){document.getElementById('lb-content').innerHTML='<div class="empty"><div class="big">📭</div><h3>No responses yet this week</h3><p style="font-size:13px;margin-top:8px;">Be the first!</p></div>';return;}
+    document.getElementById('lb-content').innerHTML=`<table><thead><tr><th style="width:50px">Rank</th><th>Name</th><th>Score</th><th>Accuracy</th><th>Submitted</th></tr></thead><tbody>${rows.map((r,i)=>{const cl=i===0?'r1':i===1?'r2':i===2?'r3':'rn';const cor=+r.c['Questions Correct']||0,tot=+r.c['Questions Total']||0;const pct=normPct(r.c['Correct %']);const bc=pct>=80?'var(--success)':pct>=60?'var(--warn)':'var(--error)';return`<tr><td><span class="rb ${cl}">${i<3?['🥇','🥈','🥉'][i]:i+1}</span></td><td><strong>${esc(r.c['Tech Name'])}</strong></td><td style="font-family:monospace;font-weight:600">${cor}/${tot}</td><td>${pct}%<span class="bw"><span class="bf" style="width:${pct}%;background:${bc}"></span></span></td><td style="font-size:11px;color:var(--muted);font-family:monospace">${fmtDate(r.c['Submitted At'])}</td></tr>`;}).join('')}</tbody></table>`;
+  }else{
+    const byWeek=new Map();for(const r of all){const key=`${r.c['Week']}|${r.c['Tech Name']}`;const ex=byWeek.get(key);if(!ex||(+r.c['Questions Correct']||0)>(+ex.c['Questions Correct']||0))byWeek.set(key,r);}
+    const map=new Map();for(const r of byWeek.values()){const n=r.c['Tech Name'];if(!n)continue;if(!map.has(n))map.set(n,{name:n,cor:0,tot:0,wks:new Set(),sp:0,sc:0});const e=map.get(n);e.cor+=(+r.c['Questions Correct']||0);e.tot+=(+r.c['Questions Total']||0);if(r.c['Week'])e.wks.add(r.c['Week']);const p=normPct(r.c['Correct %']);if(p>=0){e.sp+=p;e.sc++;}}
+    const rows=[...map.values()].map(e=>({...e,wks:e.wks.size,ap:e.sc?Math.round(e.sp/e.sc):0})).sort((a,b)=>b.ap-a.ap||b.wks-a.wks);
+    document.getElementById('lb-sp').textContent=rows.length;document.getElementById('lb-sa').textContent='—';document.getElementById('lb-sc').textContent=rows.length?Math.round(rows.reduce((s,r)=>s+r.ap,0)/rows.length)+'%':'—';
+    if(!rows.length){document.getElementById('lb-content').innerHTML='<div class="empty"><div class="big">📊</div><h3>No all-time data yet</h3></div>';return;}
+    document.getElementById('lb-content').innerHTML=`<table><thead><tr><th>Rank</th><th>Name</th><th>Avg Accuracy</th><th>Weeks Played</th><th>Total Correct</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td><span class="rb ${i===0?'r1':i===1?'r2':i===2?'r3':'rn'}">${i<3?['🥇','🥈','🥉'][i]:i+1}</span></td><td><strong>${esc(r.name)}</strong></td><td>${r.ap}%<span class="bw"><span class="bf" style="width:${Math.min(r.ap,100)}%;background:var(--accent)"></span></span></td><td style="font-family:monospace">${r.wks}</td><td style="font-family:monospace">${r.cor}/${r.tot}</td></tr>`).join('')}</tbody></table>`;
+  }
+}
+
+async function identSubmit(){
+  const sel=document.getElementById('id-select').value,neu=document.getElementById('id-new').value.trim(),name=neu||sel;
+  if(!name){flash('Enter or select your name','e');return;}
+  currentUser=name;await saveS({name});showPage('take');renderTake();
+}
+
+async function init(){
+  document.getElementById('week-foot').textContent=W;
+  prefetchNames();
+  loadAll().catch(()=>{});
+  const s=await loadS();
+  if(s?.name){currentUser=s.name;showPage('take');renderTake();}
+}
+init();
+</script>
+</body>
+</html>
