@@ -93,11 +93,14 @@ Error handling:
 
 ## STEP 4 — Copy final outputs to workspace folder
 
-Copy all deliverables to:
-/sessions/zealous-serene-dijkstra/mnt/Claude_Desktop_MTV/
+Find the correct session path dynamically:
+```bash
+WORKSPACE=$(find /sessions/*/mnt/Claude_Desktop_MTV -maxdepth 0 -type d 2>/dev/null | head -1)
+```
 
-For skills, copy .skill file to:
-/sessions/zealous-serene-dijkstra/mnt/Claude_Desktop_MTV/Personal_Skills/
+Copy all deliverables to `$WORKSPACE/`
+
+For skills, copy .skill file to `$WORKSPACE/Personal_Skills/`
 
 ---
 

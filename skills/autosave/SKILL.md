@@ -110,13 +110,15 @@ git push origin main
 
 ## STEP 5 — Copy final outputs to workspace folder
 
-Also copy all deliverables to the workspace folder so Guillermo can open them directly:
-`/sessions/zealous-serene-dijkstra/mnt/Claude_Desktop_MTV/`
+Also copy all deliverables to the workspace folder so Guillermo can open them directly.
+Find the correct session path dynamically:
+```bash
+WORKSPACE=$(find /sessions/*/mnt/Claude_Desktop_MTV -maxdepth 0 -type d 2>/dev/null | head -1)
+```
 
-For skills, copy the packaged `.skill` file to:
-`/sessions/zealous-serene-dijkstra/mnt/Claude_Desktop_MTV/Personal_Skills/`
+For skills, copy the packaged `.skill` file to `$WORKSPACE/Personal_Skills/`
 
-For code files, copy to an appropriate subfolder.
+For code files, copy to an appropriate subfolder under `$WORKSPACE/`.
 
 ---
 
