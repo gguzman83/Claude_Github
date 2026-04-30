@@ -64,7 +64,8 @@ If unsure, default to `misc/[filename]`.
 Use Bash to:
 
 ```bash
-cd /sessions/zealous-serene-dijkstra/Claude_Github
+WORKSPACE=$(find /sessions/*/mnt/Claude_Desktop_MTV -maxdepth 0 -type d 2>/dev/null | head -1)
+cd "$WORKSPACE"
 
 # Pull latest to avoid conflicts
 git pull origin main
@@ -101,7 +102,8 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 
 Then run:
 ```bash
-cd /sessions/zealous-serene-dijkstra/Claude_Github
+WORKSPACE=$(find /sessions/*/mnt/Claude_Desktop_MTV -maxdepth 0 -type d 2>/dev/null | head -1)
+cd "$WORKSPACE"
 git commit -m "[generated message above]"
 git push origin main
 ```
