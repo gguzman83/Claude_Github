@@ -181,7 +181,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <option value="projects">🏗️ Projects</option>
           <option value="clpse">🔵 CLPSE</option>
           <option value="splitrole">🟡 Split Role</option>
-          <option value="slack">💬 Slack - Follow-ups</option>
+          <option value="slack">💬 Follow-ups</option>
           <option value="personal">📝 Personal Notes</option>
         </select>
         <button type="submit" class="btn btn-primary">Add</button>
@@ -255,7 +255,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div style="padding:8px 20px 0">
       <div class="card" id="card-slack">
         <div class="card-hdr slack-hdr" id="hdr-slack" onclick="toggleCat('slack')">
-          <div class="card-title"><span>💬</span><span class="slack-t">Slack - Follow-ups</span><span class="chevron">▾</span></div>
+          <div class="card-title"><span>💬</span><span class="slack-t">Follow-ups</span><span class="chevron">▾</span></div>
           <div class="badges"><span class="badge done-b" id="done-slack" style="display:none"></span><span class="badge slack-b" id="cnt-slack">0</span></div>
         </div>
         <div class="card-body" id="list-slack" ondragover="bodyDragOver(event,'slack')" ondragleave="bodyDragLeave(event,'slack')" ondrop="bodyDrop(event,'slack')"></div>
@@ -740,9 +740,33 @@ function renderLive(){
       <span class="log-text" onclick="startEditLive('${e.id}')" style="cursor:pointer;flex:1" title="Click to edit">${linkify(e.text)}</span>
       <div class="live-acts note-acts" style="opacity:0;transition:opacity .15s;display:flex;gap:3px;flex-shrink:0">
         <button class="ico-btn" onclick="event.stopPropagation();startEditLive('${e.id}')" title="Edit">✏️</button>
+        <button class="ico-btn" onclick="event.stopPropagation();pinLiveNote('${e.id}')" title="Pin & Archive" style="font-size:13px">📌</button>
         <button class="ico-btn del" onclick="event.stopPropagation();deleteLive('${e.id}')" title="Delete">🗑️</button>
       </div>
     </div>`).join('');
+}
+
+function pinLiveNote(id) {
+  const entry = state.live.find(e => e.id === id);
+  if (!entry) return;
+  if (!confirm('Pin "' + entry.text.substring(0, 60) + '…" to Pinned Notes?')) return;
+  // Remove from live notes
+  state.live = state.live.filter(e => e.id !== id);
+  scheduleSave();
+  renderLive();
+  // Write to doc's PINNED section
+  google.script.run
+    .withSuccessHandler(r => {
+      if (r && r.success) {
+        toast('📌 Pinned to your doc!');
+        pinnedCache = null;
+        if (document.getElementById('tab-pinned').style.display !== 'none') loadPinnedNotes();
+      } else {
+        toast('⚠️ Saved locally but doc write failed');
+      }
+    })
+    .withFailureHandler(() => toast('⚠️ Could not write to doc'))
+    .archiveNoteToDoc(entry.text, '', 'live', Date.now());
 }
 function startEditLive(id){
   const entry=state.live.find(e=>e.id===id);
@@ -803,13 +827,13 @@ function addNote(e){
   renderCat(cat);updateCounts();
   inp.value='';inp.style.height='auto';inp.focus();
   const cp=document.getElementById('capture-preview');if(cp)cp.style.display='none';
-  const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal Notes',slack:'💬 Slack - Follow-ups'};
+  const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal Notes',slack:'💬 Follow-ups'};
   toast('Added to '+labels[cat]);
 }
 
 function startInlineAdd(cat){
   const el=document.getElementById('list-'+cat);
-  const labels={incidents:'Incidents & Escalations',tasks:'Tasks & Action Items',projects:'Projects & Initiatives',clpse:'CLPSE',splitrole:'Split Role',personal:'My Personal Notes',slack:'Slack - Follow-ups'};
+  const labels={incidents:'Incidents & Escalations',tasks:'Tasks & Action Items',projects:'Projects & Initiatives',clpse:'CLPSE',splitrole:'Split Role',personal:'My Personal Notes',slack:'Follow-ups'};
   const tid='inline-inp-'+cat;
   const pid='inline-prev-'+cat;
   el.innerHTML=`<div class="edit-form" style="margin:8px 12px 10px">
@@ -845,7 +869,7 @@ function commitInlineAdd(cat){
   expandCat(cat);
   scheduleSave();
   renderCat(cat);updateCounts();
-  const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal Notes',slack:'💬 Slack - Follow-ups'};
+  const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal Notes',slack:'💬 Follow-ups'};
   toast('Added to '+labels[cat]);
 }
 function toggleNote(cat,id,checked){
@@ -1026,7 +1050,7 @@ function _buildSyncSections(){
   add('Incidents & Escalations:', state.notes.incidents);
   add('My Work:', state.notes.tasks);
   add('Projects & Initiatives:', state.notes.projects);
-  add('Slack - Follow-ups:', state.notes.slack);
+  add('Follow-ups:', state.notes.slack);
   add('CLPSE:', state.notes.clpse);
   add('Split Role:', state.notes.splitrole);
   add('My Personal Notes:', state.notes.personal);
