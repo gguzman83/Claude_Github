@@ -82,15 +82,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 #link-dialog input{width:100%;box-sizing:border-box;padding:7px 10px;border-radius:6px;border:1.5px solid #6366f1;font-size:13px;font-family:inherit;outline:none;margin-bottom:8px}
 #link-dialog .link-acts{display:flex;gap:8px;justify-content:flex-end}
 #link-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.25);z-index:9998}
-/* Live */
-.live{margin:0 20px 20px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.05)}
-.live-hdr{padding:11px 14px;background:#fafafa;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px}
-.live-body{padding:12px 14px}
-.live-form{display:flex;gap:8px;margin-bottom:10px}
-.log{max-height:180px;overflow-y:auto}
-.log-row{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid #f8fafc;align-items:flex-start}
-.log-time{font-size:10px;color:#94a3b8;white-space:nowrap;min-width:48px;margin-top:2px;font-variant-numeric:tabular-nums}
-.log-text{font-size:13px;color:#374151;flex:1;line-height:1.4}
+/* Capture modal */
+#capture-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9000;align-items:center;justify-content:center}
+#capture-modal-overlay.open{display:flex}
+#capture-modal{background:#fff;border-radius:14px;width:min(580px,92vw);padding:20px 22px;box-shadow:0 8px 32px rgba(0,0,0,.18);display:flex;flex-direction:column;gap:12px}
+#capture-modal-inp{width:100%;box-sizing:border-box;font-size:14px;min-height:120px;resize:vertical;border:1.5px solid #c7d2fe;border-radius:8px;padding:10px 12px;outline:none;font-family:inherit;line-height:1.6;color:#1e293b}
+#capture-modal-inp:focus{border-color:#6366f1}
+#capture-modal-row{display:flex;gap:8px;align-items:center}
+#capture-modal-preview{display:none;font-size:12px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;line-height:1.5}
 /* Resources */
 .res-toolbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:12px 20px;display:flex;gap:10px;align-items:center}
 .type-tabs{display:flex;gap:4px;flex-wrap:wrap;padding:8px 20px;background:#fff;border-bottom:1px solid #e2e8f0}
@@ -173,7 +172,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="capture">
       <form onsubmit="addNote(event)">
         <span style="font-size:16px">⚡</span>
-        <textarea class="inp" id="note-inp" placeholder="Quick capture — Enter to add, ⌘↵ for new line…" autocomplete="off" rows="1" onpaste="handlePasteWithLinks(event,'note-inp')" onkeydown="captureKeydown(event,'note-inp')" oninput="autoResizeTA(this);updateCapturePreview()" style="resize:none;overflow:hidden;line-height:1.5;min-height:38px"></textarea>
+        <textarea class="inp" id="note-inp" placeholder="Quick capture — click to expand…" autocomplete="off" rows="1" onfocus="openCaptureModal()" style="resize:none;overflow:hidden;line-height:1.5;min-height:38px;cursor:pointer" readonly></textarea>
         <select class="sel" id="cat-sel" onchange="if(this.value!=='auto')expandCat(this.value)">
           <option value="auto">✨ Auto-detect</option>
           <option value="incidents">🔥 Incidents</option>
@@ -262,24 +261,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
     </div>
 
-    <!-- Live Notes (full width) -->
-    <div class="live" style="margin:8px 20px 16px">
-      <div class="live-hdr">
-        <span style="font-size:17px">📝</span>
-        <span style="font-size:13px;font-weight:700;color:#374151">Live Notes</span>
-        <span style="font-size:11px;color:#94a3b8">— stream of consciousness, timestamped</span>
-        <span class="badge" style="margin-left:auto;background:#f1f5f9;color:#64748b" id="live-cnt"></span>
-      </div>
-      <div class="live-body">
-        <div class="live-form" style="align-items:flex-end">
-          <textarea class="inp" id="live-inp" placeholder="Jot anything — no category needed, just flow… (⌘↵ for new line)" autocomplete="off" rows="1" onpaste="handlePasteWithLinks(event,'live-inp')" onkeydown="captureKeydown(event,'live-inp')" oninput="autoResizeTA(this);updateLivePreview()" style="resize:none;overflow:hidden;line-height:1.5;min-height:38px"></textarea>
-          <button class="btn btn-primary btn-sm" onclick="addLive()">Log it</button>
-        </div>
-        <div id="live-preview" style="display:none;font-size:12px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;margin-top:4px">↑ preview: <span id="live-preview-text"></span></div>
-        <div class="log" id="live-log"
-          ondragover="event.preventDefault();event.currentTarget.style.outline='2px dashed #6366f1'"
-          ondragleave="event.currentTarget.style.outline=''"
-          ondrop="dropToLive(event)"></div>
+  </div>
+
+  <!-- Quick Capture Modal -->
+  <div id="capture-modal-overlay" onclick="if(event.target===this)closeCaptureModal()">
+    <div id="capture-modal">
+      <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:2px">⚡ Quick Capture</div>
+      <textarea id="capture-modal-inp" placeholder="Type your note… (⌘↵ for new line)" autocomplete="off"
+        onpaste="handlePasteWithLinks(event,'capture-modal-inp')"
+        onkeydown="captureModalKeydown(event)"
+        oninput="updateCaptureModalPreview()"></textarea>
+      <div id="capture-modal-preview"></div>
+      <div id="capture-modal-row">
+        <select class="sel" id="capture-modal-cat">
+          <option value="auto">✨ Auto-detect</option>
+          <option value="incidents">🔥 Incidents</option>
+          <option value="tasks">✅ Tasks</option>
+          <option value="projects">🏗️ Projects</option>
+          <option value="clpse">🔵 CLPSE</option>
+          <option value="splitrole">🟡 Split Role</option>
+          <option value="slack">💬 Follow-ups</option>
+          <option value="personal">📝 Personal Notes</option>
+        </select>
+        <button class="btn btn-primary" onclick="submitCaptureModal()">Add</button>
+        <button class="btn btn-sm btn-outline" onclick="closeCaptureModal()">Cancel</button>
       </div>
     </div>
   </div>
@@ -410,36 +415,31 @@ const SEED = {
       {id:'sl6',text:'[Vikas Chandra Chaudhary](https://intuit.enterprise.slack.com/archives/D9PH7BV1B/p1777124989326579) — Review updated Managers Guide + HTML file',detail:'Mock data except Gilbert (from file + SNOW reports). [Managers Guide](https://docs.google.com/document/d/1Tio8g81fSBQIXLV1guzKluz3dBy-XiQOCvBZPytwyYk/edit)',done:false,source:'Slack Later',ts:Date.now()-43200000},
       {id:'sl7',text:'[Hieu Giap](https://intuit.enterprise.slack.com/archives/C0AUYNA1Z8T/p1777051657409649) — ~6 free-range laptops for MC leadership AI tools testing',detail:'CPC & AI Sandbox limitations (no OpenClaw/Hermes Agent) — similar to Claude Desktop testing setup a few months ago',done:false,source:'Slack Later',ts:Date.now()-86400000},
     ]
-  },
-  live: [
-    {id:'l1',text:'End of Year Review — t4i Care Manager ratings / FY26 Talent Mid Year / EOY',ts:Date.now()-3000},
-    {id:'l2',text:'Review Mgr Specific Rubric: Tech People Manager Rubric (non-engineering)_2026',ts:Date.now()-2000},
-    {id:'l3',text:'Received Asset Tags 2/20 — set up time with Cory Leeson before using CK workflow',ts:Date.now()-1000},
-  ]
+  }
 };
 
 // ─── State ────────────────────────────────────────────────────────────────────
-let state = { notes: SEED.notes, live: SEED.live };
+let state = { notes: SEED.notes };
 let editingId = null, saveTimer = null;
 // ─── App-level undo/redo history ─────────────────────────────────────────────
 let _hist = [], _histIdx = -1;
 function pushHistory() {
   _hist = _hist.slice(0, _histIdx + 1);
-  _hist.push(JSON.stringify({notes: state.notes, live: state.live}));
+  _hist.push(JSON.stringify({notes: state.notes}));
   if (_hist.length > 50) _hist.shift(); else _histIdx++;
 }
 function undoApp() {
   if (_histIdx <= 0) { toast('Nothing to undo'); return; }
   _histIdx--;
   const s = JSON.parse(_hist[_histIdx]);
-  state.notes = s.notes; state.live = s.live;
+  state.notes = s.notes;
   renderAll(); toast('↩ Undo');
 }
 function redoApp() {
   if (_histIdx >= _hist.length - 1) { toast('Nothing to redo'); return; }
   _histIdx++;
   const s = JSON.parse(_hist[_histIdx]);
-  state.notes = s.notes; state.live = s.live;
+  state.notes = s.notes;
   renderAll(); toast('↪ Redo');
 }
 document.addEventListener('keydown', function(e) {
@@ -604,7 +604,6 @@ function loadFromServer(){
       document.getElementById('main-ui').style.display='block';
       if(data && data.notes){
         state.notes=data.notes;
-        state.live=data.live||[];
       }
       // Ensure all categories always exist (handles old saved data missing newer cats)
       // Migrate old meetings → clpse if needed
@@ -632,7 +631,7 @@ function scheduleSave(){
     google.script.run
       .withSuccessHandler(()=>setStatus('','Synced ✓'))
       .withFailureHandler(()=>setStatus('error','Sync failed'))
-      .saveNotes({notes:state.notes,live:state.live,date:todayKey});
+      .saveNotes({notes:state.notes,date:todayKey});
   },800);
 }
 
@@ -640,7 +639,7 @@ function scheduleSave(){
 function renderAll(){
   ['incidents','tasks','projects','clpse','splitrole','personal','slack'].forEach(cat => { renderCat(cat); applyCollapsed(cat); });
   showIncidentsIfHasNotes();
-  renderLive();updateCounts();
+  updateCounts();
 }
 
 function renderCat(cat){
@@ -730,76 +729,6 @@ function renderCat(cat){
   }
 }
 
-function renderLive(){
-  const log=document.getElementById('live-log');
-  document.getElementById('live-cnt').textContent=state.live.length+' entries';
-  if(!state.live||state.live.length===0){log.innerHTML='<div class="empty">Nothing logged yet</div>';return;}
-  log.innerHTML=state.live.map(e=>`
-    <div class="log-row" id="lrow-${e.id}" style="position:relative" onmouseover="this.querySelector('.live-acts').style.opacity=1" onmouseout="this.querySelector('.live-acts').style.opacity=0">
-      <span class="log-time">${fmtT(e.ts)}</span>
-      <span class="log-text" onclick="startEditLive('${e.id}')" style="cursor:pointer;flex:1" title="Click to edit">${linkify(e.text)}</span>
-      <div class="live-acts note-acts" style="opacity:0;transition:opacity .15s;display:flex;gap:3px;flex-shrink:0">
-        <button class="ico-btn" onclick="event.stopPropagation();startEditLive('${e.id}')" title="Edit">✏️</button>
-        <button class="ico-btn" onclick="event.stopPropagation();pinLiveNote('${e.id}')" title="Pin & Archive" style="font-size:13px">📌</button>
-        <button class="ico-btn del" onclick="event.stopPropagation();deleteLive('${e.id}')" title="Delete">🗑️</button>
-      </div>
-    </div>`).join('');
-}
-
-function pinLiveNote(id) {
-  const entry = state.live.find(e => e.id === id);
-  if (!entry) return;
-  if (!confirm('Pin "' + entry.text.substring(0, 60) + '…" to Pinned Notes?')) return;
-  // Remove from live notes
-  state.live = state.live.filter(e => e.id !== id);
-  scheduleSave();
-  renderLive();
-  // Write to doc's PINNED section
-  google.script.run
-    .withSuccessHandler(r => {
-      if (r && r.success) {
-        toast('📌 Pinned to your doc!');
-        pinnedCache = null;
-        if (document.getElementById('tab-pinned').style.display !== 'none') loadPinnedNotes();
-      } else {
-        toast('⚠️ Saved locally but doc write failed');
-      }
-    })
-    .withFailureHandler(() => toast('⚠️ Could not write to doc'))
-    .archiveNoteToDoc(entry.text, '', 'live', Date.now());
-}
-function startEditLive(id){
-  const entry=state.live.find(e=>e.id===id);
-  if(!entry)return;
-  const row=document.getElementById('lrow-'+id);
-  if(!row)return;
-  row.innerHTML=`
-    <div style="display:flex;flex-direction:column;flex:1;gap:4px">
-      <div style="display:flex;align-items:flex-start;gap:6px">
-        <span class="log-time" style="margin-top:4px">${fmtT(entry.ts)}</span>
-        <textarea id="ledit-${id}" rows="1" style="flex:1;font-size:13px;padding:4px 8px;border:1.5px solid #6366f1;border-radius:6px;color:#374151;outline:none;resize:none;overflow:hidden;line-height:1.5;font-family:inherit"
-          onkeydown="handleTabKey(event,'ledit-${id}');if(event.key==='Enter'&&!event.metaKey&&!event.ctrlKey){event.preventDefault();commitEditLive('${id}');}if(event.key==='Escape'){renderLive();}if(event.metaKey&&event.key==='Enter'){event.preventDefault();document.execCommand('insertText',false,'\\n');autoResizeTA(this);}handleLinkHotkey(event,'ledit-${id}');autoResizeTA(this)"
-          onpaste="handlePasteWithLinks(event,'ledit-${id}')"
-          oninput="autoResizeTA(this);autoCheckEditPreview('ledit-${id}','lprev-${id}')"
-          onfocus="autoResizeTA(this)">${esc(entry.text)}</textarea>
-        <button class="ico-btn" onclick="commitEditLive('${id}')" style="font-size:11px;color:#6366f1;margin-top:2px">✓</button>
-        <button class="ico-btn del" onclick="deleteLive('${id}')" style="opacity:.5;font-size:14px;margin-top:2px">×</button>
-      </div>
-      <div id="lprev-${id}" style="display:none;font-size:12px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;margin-left:54px;line-height:1.5"></div>
-    </div>`;
-  setTimeout(()=>{const i=document.getElementById('ledit-'+id);if(i){autoResizeTA(i);i.focus();i.select();}},30);
-}
-function commitEditLive(id){
-  const inp=document.getElementById('ledit-'+id);
-  if(!inp)return; // already committed via blur+Enter double-fire guard
-  const txt=inp.value.trim();
-  inp.id=''; // prevent double-fire from blur after Enter
-  if(!txt){deleteLive(id);return;}
-  const entry=state.live.find(e=>e.id===id);
-  if(entry){entry.text=txt;scheduleSave();}
-  renderLive();
-}
-
 function updateCounts(){
   let total=0;
   ['incidents','tasks','projects','clpse','splitrole','personal','slack'].forEach(cat=>{
@@ -885,15 +814,6 @@ function deleteNote(cat,id){
   scheduleSave();renderCat(cat);updateCounts();
 }
 
-function moveToLive(cat,id){
-  const idx=state.notes[cat].findIndex(n=>n.id===id);
-  if(idx===-1)return;
-  const [note]=state.notes[cat].splice(idx,1);
-  state.live.unshift({id:'l'+Date.now(),text:note.text,ts:Date.now()});
-  scheduleSave();renderCat(cat);updateCounts();renderLive();
-  toast('📝 Moved to Live Notes');
-}
-
 function startEdit(cat,id){
   editingId=id;renderAll();
   setTimeout(()=>{const ta=document.getElementById('et-'+id);if(ta){ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);}},50);
@@ -907,16 +827,6 @@ function saveEdit(cat,id){
 }
 function cancelEdit(){editingId=null;renderAll();}
 
-function addLive(){
-  const inp=document.getElementById('live-inp');
-  const txt=inp.value.trim();if(!txt)return;
-  state.live.unshift({id:'l'+Date.now(),text:txt,ts:Date.now()});
-  scheduleSave();renderLive();inp.value='';inp.style.height='auto';inp.focus();
-}
-function deleteLive(id){
-  state.live=state.live.filter(e=>e.id!==id);
-  scheduleSave();renderLive();
-}
 function autoResizeTA(el){
   el.style.height='auto';
   el.style.height=el.scrollHeight+'px';
@@ -934,7 +844,6 @@ function captureKeydown(e,inputId){
       // Enter = submit
       e.preventDefault();
       if(inputId==='note-inp') addNote(e);
-      else if(inputId==='live-inp') addLive();
     }
   }
 }
@@ -954,11 +863,6 @@ function buildSyncText(){
     });
     lines.push('');
   });
-  if (state.live && state.live.length > 0) {
-    lines.push('1. Notes:');
-    state.live.forEach((e,i) => lines.push(`   ${i+1}. ${fmtT(e.ts)}  ${e.text}`));
-    lines.push('');
-  }
   return lines.join('\n');
 }
 
@@ -1028,17 +932,6 @@ function buildSyncHtml(){
     });
     html += `</div>`;
   });
-  if (state.live && state.live.length > 0) {
-    html += `<div style="margin-bottom:18px">`;
-    html += `<div style="margin-bottom:6px;font-weight:700;color:#1e293b">Live Notes:</div>`;
-    state.live.forEach((e, i) => {
-      html += `<div style="display:flex;gap:8px;padding-left:16px;margin-bottom:10px;align-items:flex-start">`;
-      html += `<span style="flex-shrink:0;min-width:18px;color:#64748b;padding-top:1px">${i+1}.</span>`;
-      html += `<div style="flex:1;min-width:0"><span style="color:#94a3b8;font-size:11px">${esc(fmtT(e.ts))}</span>&nbsp; ${linkifyInline(e.text)}</div>`;
-      html += `</div>`;
-    });
-    html += `</div>`;
-  }
   html += `</div>`;
   return html;
 }
@@ -1064,8 +957,7 @@ function buildSyncPayload(){
     sections: _buildSyncSections().map(s => ({
       label: s.label,
       notes: s.notes.map(n => ({text:n.text, done:!!n.done, detail:n.detail||''}))
-    })),
-    live: (state.live||[]).map(e=>({ts:e.ts,text:e.text}))
+    }))
   });
 }
 
@@ -1446,21 +1338,6 @@ function bodyDrop(e, tgtCat) {
   }
 }
 
-function dropToLive(e) {
-  e.preventDefault();
-  e.currentTarget.style.outline='';
-  if (!_drag) return;
-  const { cat: srcCat, id: srcId } = _drag;
-  const srcList = state.notes[srcCat];
-  const srcIdx  = srcList.findIndex(n => n.id === srcId);
-  if (srcIdx === -1) { noteDragEnd(); return; }
-  const [note] = srcList.splice(srcIdx, 1);
-  state.live.unshift({id:'l'+Date.now(), text:note.text, ts:Date.now()});
-  _drag = null;
-  scheduleSave(); renderAll();
-  toast('📝 Moved to Live Notes');
-}
-
 // ─── Paste with hyperlink preservation ───────────────────────────────────────
 function handlePasteWithLinks(event, inputId) {
   const cd = event.clipboardData || window.clipboardData;
@@ -1614,17 +1491,64 @@ function updateCapturePreview() {
     box.style.display = 'none';
   }
 }
-function updateLivePreview() {
-  const ta  = document.getElementById('live-inp');
-  const box = document.getElementById('live-preview');
-  const txt = document.getElementById('live-preview-text');
-  if (!ta || !box || !txt) return;
+// ─── Quick Capture Modal ──────────────────────────────────────────────────────
+function openCaptureModal() {
+  document.getElementById('note-inp').blur();
+  document.getElementById('capture-modal-overlay').classList.add('open');
+  document.getElementById('capture-modal-cat').value = document.getElementById('cat-sel').value;
+  setTimeout(() => {
+    const ta = document.getElementById('capture-modal-inp');
+    if (ta) { ta.focus(); ta.select(); }
+  }, 60);
+}
+function closeCaptureModal() {
+  document.getElementById('capture-modal-overlay').classList.remove('open');
+  document.getElementById('capture-modal-inp').value = '';
+  document.getElementById('capture-modal-preview').style.display = 'none';
+  document.getElementById('capture-modal-preview').innerHTML = '';
+}
+function submitCaptureModal() {
+  const ta  = document.getElementById('capture-modal-inp');
+  const txt = ta.value.trim();
+  if (!txt) return;
+  const sel = document.getElementById('capture-modal-cat').value;
+  const cat = sel === 'auto' ? autoCat(txt) : sel;
+  const note = {id:'n'+Date.now(), text:txt, detail:'', done:false, source:'', ts:Date.now()};
+  state.notes[cat].unshift(note);
+  expandCat(cat);
+  scheduleSave();
+  renderCat(cat); updateCounts();
+  const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal Notes',slack:'💬 Follow-ups'};
+  toast('Added to ' + labels[cat]);
+  closeCaptureModal();
+}
+function captureModalKeydown(e) {
+  handleTabKey(e, 'capture-modal-inp');
+  handleLinkHotkey(e, 'capture-modal-inp');
+  if (e.key === 'Enter') {
+    if (e.metaKey || e.ctrlKey) {
+      e.preventDefault();
+      document.execCommand('insertText', false, '\n');
+      autoResizeTA(document.getElementById('capture-modal-inp'));
+    } else {
+      e.preventDefault();
+      submitCaptureModal();
+    }
+  }
+  if (e.key === 'Escape') { e.preventDefault(); closeCaptureModal(); }
+}
+function updateCaptureModalPreview() {
+  const ta  = document.getElementById('capture-modal-inp');
+  const box = document.getElementById('capture-modal-preview');
+  if (!ta || !box) return;
   if (hasFormatting(ta.value)) {
-    txt.innerHTML = linkify(ta.value);
+    box.innerHTML = '↑ preview: ' + linkify(ta.value);
     box.style.display = 'block';
   } else {
     box.style.display = 'none';
+    box.innerHTML = '';
   }
+  autoResizeTA(ta);
 }
 function autoCheckEditPreview(inputId, previewId) {
   const ta = document.getElementById(inputId);
