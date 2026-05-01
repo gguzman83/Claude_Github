@@ -216,6 +216,7 @@ function appendToDoc(payloadJson) {
       var textEl = item.editAsText();
       textEl.setText(plainText);
       textEl.setFontFamily(font);
+      textEl.setFontSize(12);
       textEl.setBold(false);
       textEl.setItalic(false);
       textEl.setUnderline(false);
@@ -255,6 +256,7 @@ function appendToDoc(payloadJson) {
       if (!applyMarkdownFormatting(item, clean, FONT)) {
         var t = item.editAsText();
         t.setFontFamily(FONT);
+        t.setFontSize(12);
         t.setBold(false);
         t.setItalic(false);
       }
@@ -285,6 +287,7 @@ function appendToDoc(payloadJson) {
         header.setSpacingAfter(4);
         var ht = header.editAsText();
         ht.setFontFamily(FONT);
+        ht.setFontSize(12);
         ht.setBold(true);
         ht.setItalic(false);
         ht.setUnderline(false);
@@ -591,6 +594,7 @@ function archiveNoteToDoc(noteText, noteDetail, category, timestamp) {
       var t = item.editAsText();
       t.setText(plain);
       t.setFontFamily(FONT);
+      t.setFontSize(12);
       t.setBold(false); t.setItalic(false); t.setUnderline(false);
       var pos = 0;
       for (var i = 0; i < parts.length; i++) {
@@ -676,7 +680,7 @@ function archiveNoteToDoc(noteText, noteDetail, category, timestamp) {
       subItem.setNestingLevel(1);
       subItem.setGlyphType(DocumentApp.GlyphType.HOLLOW_SQUARE);
       if (!applyMarkdown(subItem, noteDetail.trim())) {
-        subItem.editAsText().setFontFamily(FONT).setBold(false).setItalic(false);
+        subItem.editAsText().setFontFamily(FONT).setFontSize(12).setBold(false).setItalic(false);
       }
       subItem.setSpacingBefore(2); subItem.setSpacingAfter(2);
     }
@@ -686,7 +690,7 @@ function archiveNoteToDoc(noteText, noteDetail, category, timestamp) {
     mainItem.setNestingLevel(0);
     mainItem.setGlyphType(DocumentApp.GlyphType.HOLLOW_SQUARE);
     if (!applyMarkdown(mainItem, mainText)) {
-      mainItem.editAsText().setFontFamily(FONT).setBold(false).setItalic(false);
+      mainItem.editAsText().setFontFamily(FONT).setFontSize(12).setBold(false).setItalic(false);
     }
     mainItem.setSpacingBefore(4); mainItem.setSpacingAfter(4);
 
