@@ -37,6 +37,7 @@ function saveNotes(payload) {
   try {
     const props = PropertiesService.getUserProperties();
     props.setProperty('notes',      JSON.stringify(payload.notes));
+    props.setProperty('live',       JSON.stringify(payload.live));
     props.setProperty('saved_date', payload.date);
     return { success: true };
   } catch (e) {
