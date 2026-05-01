@@ -183,21 +183,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
         <div class="capture-body">
           <form onsubmit="addNote(event)">
-            <textarea class="inp" id="note-inp" placeholder="Jot a note — Enter to add, ⌘↵ for new line…" autocomplete="off" rows="3" onpaste="handlePasteWithLinks(event,'note-inp')" onkeydown="captureKeydown(event,'note-inp')" oninput="autoResizeTA(this);updateCapturePreview()" style="resize:none;overflow:hidden;line-height:1.5;min-height:70px;width:100%;box-sizing:border-box"></textarea>
-            <div id="capture-preview" style="display:none;font-size:12px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;margin-top:2px">↑ preview: <span id="capture-preview-text"></span></div>
-            <div class="capture-row">
-              <select class="sel" id="cat-sel" style="flex:1" onchange="if(this.value!=='auto')expandCat(this.value)">
-                <option value="auto">✨ Auto-detect</option>
-                <option value="incidents">🔥 Incidents</option>
-                <option value="tasks">✅ Tasks</option>
-                <option value="projects">🏗️ Projects</option>
-                <option value="clpse">🔵 CLPSE</option>
-                <option value="splitrole">🟡 Split Role</option>
-                <option value="slack">💬 Follow-ups</option>
-                <option value="personal">📝 Personal Notes</option>
-              </select>
-              <button type="submit" class="btn btn-primary">Add</button>
+            <div style="display:flex;gap:8px;align-items:flex-start">
+              <textarea class="inp" id="note-inp" placeholder="Jot a note — Enter to add, ⌘↵ for new line…" autocomplete="off" rows="3" onpaste="handlePasteWithLinks(event,'note-inp')" onkeydown="captureKeydown(event,'note-inp')" oninput="autoResizeTA(this);updateCapturePreview()" style="resize:none;overflow:hidden;line-height:1.5;min-height:70px;flex:1"></textarea>
+              <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
+                <select class="sel" id="cat-sel" onchange="if(this.value!=='auto')expandCat(this.value)">
+                  <option value="auto">✨ Auto-detect</option>
+                  <option value="incidents">🔥 Incidents</option>
+                  <option value="tasks">✅ Tasks</option>
+                  <option value="projects">🏗️ Projects</option>
+                  <option value="clpse">🔵 CLPSE</option>
+                  <option value="splitrole">🟡 Split Role</option>
+                  <option value="slack">💬 Follow-ups</option>
+                  <option value="personal">📝 Personal Notes</option>
+                </select>
+                <button type="submit" class="btn btn-primary" style="width:100%">Add</button>
+              </div>
             </div>
+            <div id="capture-preview" style="display:none;font-size:12px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;margin-top:6px">↑ preview: <span id="capture-preview-text"></span></div>
           </form>
         </div>
       </div>
