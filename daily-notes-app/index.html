@@ -597,27 +597,39 @@ function autoCat(t){
 }
 
 // ─── Persistence via Google Apps Script ───────────────────────────────────────
+function _showUI(data) {
+  document.getElementById('loader').style.display='none';
+  document.getElementById('main-ui').style.display='block';
+  if(data && data.notes){
+    state.notes=data.notes;
+  }
+  if(state.notes.meetings && !state.notes.clpse){state.notes.clpse=state.notes.meetings;delete state.notes.meetings;}
+  ['incidents','tasks','projects','clpse','splitrole','personal','slack'].forEach(c=>{
+    if(!state.notes[c]) state.notes[c]=[];
+  });
+  renderAll();
+}
+
 function loadFromServer(){
+  // Safety net: if google.script.run never fires (mis-deploy, offline, etc.)
+  // show the UI with seed data after 8 seconds so it's never permanently stuck.
+  var _loadTimeout = setTimeout(function(){
+    if(document.getElementById('loader').style.display !== 'none'){
+      console.warn('loadFromServer timed out — showing seed data');
+      _showUI(null);
+      toast('⚠️ Could not reach server — using local data');
+    }
+  }, 8000);
+
   google.script.run
     .withSuccessHandler(data=>{
-      document.getElementById('loader').style.display='none';
-      document.getElementById('main-ui').style.display='block';
-      if(data && data.notes){
-        state.notes=data.notes;
-      }
-      // Ensure all categories always exist (handles old saved data missing newer cats)
-      // Migrate old meetings → clpse if needed
-      if(state.notes.meetings && !state.notes.clpse){state.notes.clpse=state.notes.meetings;delete state.notes.meetings;}
-      ['incidents','tasks','projects','clpse','splitrole','personal','slack'].forEach(c=>{
-        if(!state.notes[c]) state.notes[c]=[];
-      });
-      renderAll();
+      clearTimeout(_loadTimeout);
+      _showUI(data);
     })
     .withFailureHandler(err=>{
+      clearTimeout(_loadTimeout);
       console.error('Load failed:',err);
-      document.getElementById('loader').style.display='none';
-      document.getElementById('main-ui').style.display='block';
-      renderAll();
+      _showUI(null);
       toast('⚠️ Using local data — server sync unavailable');
     })
     .loadNotes();
