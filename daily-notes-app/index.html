@@ -174,7 +174,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <!-- Notes Tab -->
   <div id="tab-notes">
 
-    <!-- Row 0: Quick Capture | Incidents & Escalations -->
+    <!-- Row 0: Quick Capture | My Personal Notes -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:16px 20px 0">
       <div class="capture">
         <div class="capture-hdr">
@@ -203,17 +203,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           </form>
         </div>
       </div>
-      <div class="card" id="card-incidents">
-        <div class="card-hdr inc-hdr" id="hdr-incidents" onclick="toggleCat('incidents')">
-          <div class="card-title"><span>🔥</span><span class="inc-t">Incidents & Escalations</span><span class="chevron">▾</span></div>
-          <div class="badges"><span class="badge done-b" id="done-incidents" style="display:none"></span><span class="badge inc-b" id="cnt-incidents">0</span></div>
+      <div class="card" id="card-personal">
+        <div class="card-hdr prs-hdr" id="hdr-personal" onclick="toggleCat('personal')">
+          <div class="card-title"><span>📝</span><span class="prs-t">My Personal Notes</span><span class="chevron">▾</span></div>
+          <div class="badges"><span class="badge done-b" id="done-personal" style="display:none"></span><span class="badge prs-b" id="cnt-personal">0</span></div>
         </div>
-        <div class="card-body" id="list-incidents" ondragover="bodyDragOver(event,'incidents')" ondragleave="bodyDragLeave(event,'incidents')" ondrop="bodyDrop(event,'incidents')"></div>
+        <div class="card-body" id="list-personal" ondragover="bodyDragOver(event,'personal')" ondragleave="bodyDragLeave(event,'personal')" ondrop="bodyDrop(event,'personal')"></div>
       </div>
     </div>
 
-    <!-- Row 1: Tasks | Personal Notes -->
-    <div id="row1" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:16px 20px 0">
+    <!-- Row 1: Tasks | Incidents & Escalations -->
+    <div id="row1" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:8px 20px 0">
       <div class="card" id="card-tasks">
         <div class="card-hdr tsk-hdr" id="hdr-tasks" onclick="toggleCat('tasks')">
           <div class="card-title"><span>✅</span><span class="tsk-t">Tasks & Action Items</span><span class="chevron">▾</span></div>
@@ -221,12 +221,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
         <div class="card-body" id="list-tasks" ondragover="bodyDragOver(event,'tasks')" ondragleave="bodyDragLeave(event,'tasks')" ondrop="bodyDrop(event,'tasks')"></div>
       </div>
-      <div class="card" id="card-personal">
-        <div class="card-hdr prs-hdr" id="hdr-personal" onclick="toggleCat('personal')">
-          <div class="card-title"><span>📝</span><span class="prs-t">My Personal Notes</span><span class="chevron">▾</span></div>
-          <div class="badges"><span class="badge done-b" id="done-personal" style="display:none"></span><span class="badge prs-b" id="cnt-personal">0</span></div>
+      <div class="card" id="card-incidents">
+        <div class="card-hdr inc-hdr" id="hdr-incidents" onclick="toggleCat('incidents')">
+          <div class="card-title"><span>🔥</span><span class="inc-t">Incidents & Escalations</span><span class="chevron">▾</span></div>
+          <div class="badges"><span class="badge done-b" id="done-incidents" style="display:none"></span><span class="badge inc-b" id="cnt-incidents">0</span></div>
         </div>
-        <div class="card-body" id="list-personal" ondragover="bodyDragOver(event,'personal')" ondragleave="bodyDragLeave(event,'personal')" ondrop="bodyDrop(event,'personal')"></div>
+        <div class="card-body" id="list-incidents" ondragover="bodyDragOver(event,'incidents')" ondragleave="bodyDragLeave(event,'incidents')" ondrop="bodyDrop(event,'incidents')"></div>
       </div>
     </div>
 
