@@ -169,7 +169,7 @@ function appendToDoc(payloadJson) {
       return false;
     }
 
-    var FONT = 'Avenir';
+    var FONT = 'Avenir Next for Intuit';
 
     // ── Helper: apply markdown formatting (bold + links + bare URLs) ────────────
     // Handles **bold**, [text](url), and bare https:// URLs.
@@ -572,7 +572,7 @@ function getPinnedNotes() {
 function archiveNoteToDoc(noteText, noteDetail, category, timestamp) {
   try {
     const doc  = DocumentApp.openById(DOC_ID);
-    const FONT = 'Avenir';
+    const FONT = 'Avenir Next for Intuit';
     const date = Utilities.formatDate(new Date(timestamp), Session.getScriptTimeZone(), 'MMMM d, yyyy');
     const mainText = noteText + '  (Added ' + date + ')';
 
