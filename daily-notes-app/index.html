@@ -699,10 +699,6 @@ function renderCat(cat){
           oninput="autoCheckEditPreview('et-${n.id}','prev-${n.id}')">${esc(n.text)}</textarea>
         <div id="prev-${n.id}" style="display:none;font-size:13px;color:#374151;padding:6px 8px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;margin-top:4px;line-height:1.5"></div>
         <div id="prev-lbl-${n.id}" style="display:none;font-size:10px;color:#94a3b8;margin:2px 0 4px">↑ preview</div>
-        <textarea id="etd-${n.id}" placeholder="Detail / sub-notes (optional)…"
-          onkeydown="handleTabKey(event,'etd-${n.id}');if(event.key==='Escape'){cancelEdit();}handleLinkHotkey(event,'etd-${n.id}')"
-          onpaste="handlePasteWithLinks(event,'etd-${n.id}')"
-          style="margin-top:6px;min-height:40px;border-color:#c4b5fd">${esc(n.detail||'')}</textarea>
         <div class="edit-acts">
           <button class="btn btn-primary btn-sm" onclick="saveEdit('${cat}','${n.id}')">Save</button>
           <button class="btn btn-sm btn-outline" onclick="cancelEdit()">Cancel</button>
@@ -909,10 +905,7 @@ function saveEdit(cat,id){
   const n=state.notes[cat].find(n=>n.id===id);if(!n)return;
   const txt=document.getElementById('et-'+id).value.trim();
   if(!txt)return;
-  const detailEl=document.getElementById('etd-'+id);
-  n.text=txt;
-  if(detailEl) n.detail=detailEl.value.trim();
-  editingId=null;
+  n.text=txt;editingId=null;
   scheduleSave();renderAll();toast('✏️ Note updated');
 }
 function cancelEdit(){editingId=null;renderAll();}
