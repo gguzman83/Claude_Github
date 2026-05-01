@@ -23,8 +23,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .tab{padding:11px 16px;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;font-size:13px;font-weight:500;color:#64748b;transition:all .15s}
 .tab.active{border-bottom-color:#6366f1;color:#6366f1;font-weight:700}
 /* Capture */
-.capture{background:#fff;border-bottom:1px solid #e2e8f0;padding:12px 20px}
-.capture form{display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;align-items:start}
+.capture{background:#fff;border-radius:12px;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,.05);overflow:hidden}
+.capture-hdr{padding:10px 14px 8px;background:#fafafa;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px}
+.capture-body{padding:12px 14px}
+.capture form{display:flex;flex-direction:column;gap:8px}
+.capture-row{display:flex;gap:8px;align-items:flex-start}
 .inp{flex:1;padding:9px 14px;border-radius:8px;border:1.5px solid #e2e8f0;font-size:13px;outline:none;transition:border-color .15s;font-family:inherit}
 .inp:focus{border-color:#6366f1}
 .sel{padding:9px 10px;border-radius:8px;border:1.5px solid #e2e8f0;font-size:12px;background:#fff;color:#374151;cursor:pointer;font-family:inherit}
@@ -170,27 +173,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
   <!-- Notes Tab -->
   <div id="tab-notes">
-    <div class="capture">
-      <form onsubmit="addNote(event)">
-        <span style="font-size:16px">⚡</span>
-        <textarea class="inp" id="note-inp" placeholder="Quick capture — Enter to add, ⌘↵ for new line…" autocomplete="off" rows="1" onpaste="handlePasteWithLinks(event,'note-inp')" onkeydown="captureKeydown(event,'note-inp')" oninput="autoResizeTA(this);updateCapturePreview()" style="resize:none;overflow:hidden;line-height:1.5;min-height:38px"></textarea>
-        <select class="sel" id="cat-sel" onchange="if(this.value!=='auto')expandCat(this.value)">
-          <option value="auto">✨ Auto-detect</option>
-          <option value="incidents">🔥 Incidents</option>
-          <option value="tasks">✅ Tasks</option>
-          <option value="projects">🏗️ Projects</option>
-          <option value="clpse">🔵 CLPSE</option>
-          <option value="splitrole">🟡 Split Role</option>
-          <option value="slack">💬 Follow-ups</option>
-          <option value="personal">📝 Personal Notes</option>
-        </select>
-        <button type="submit" class="btn btn-primary">Add</button>
-        <div id="capture-preview" style="display:none;font-size:12px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;grid-column:2/5">↑ preview: <span id="capture-preview-text"></span></div>
-      </form>
-    </div>
 
-    <!-- Incidents row (hidden until triggered) -->
-    <div id="incidents-row" style="display:none;padding:8px 20px 0">
+    <!-- Row 0: Quick Capture | Incidents & Escalations -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:16px 20px 0">
+      <div class="capture">
+        <div class="capture-hdr">
+          <span style="font-size:15px">⚡</span>
+          <span style="font-size:12px;font-weight:700;color:#374151">Quick Capture</span>
+        </div>
+        <div class="capture-body">
+          <form onsubmit="addNote(event)">
+            <textarea class="inp" id="note-inp" placeholder="Jot a note — Enter to add, ⌘↵ for new line…" autocomplete="off" rows="3" onpaste="handlePasteWithLinks(event,'note-inp')" onkeydown="captureKeydown(event,'note-inp')" oninput="autoResizeTA(this);updateCapturePreview()" style="resize:none;overflow:hidden;line-height:1.5;min-height:70px;width:100%;box-sizing:border-box"></textarea>
+            <div id="capture-preview" style="display:none;font-size:12px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;margin-top:2px">↑ preview: <span id="capture-preview-text"></span></div>
+            <div class="capture-row">
+              <select class="sel" id="cat-sel" style="flex:1" onchange="if(this.value!=='auto')expandCat(this.value)">
+                <option value="auto">✨ Auto-detect</option>
+                <option value="incidents">🔥 Incidents</option>
+                <option value="tasks">✅ Tasks</option>
+                <option value="projects">🏗️ Projects</option>
+                <option value="clpse">🔵 CLPSE</option>
+                <option value="splitrole">🟡 Split Role</option>
+                <option value="slack">💬 Follow-ups</option>
+                <option value="personal">📝 Personal Notes</option>
+              </select>
+              <button type="submit" class="btn btn-primary">Add</button>
+            </div>
+          </form>
+        </div>
+      </div>
       <div class="card" id="card-incidents">
         <div class="card-hdr inc-hdr" id="hdr-incidents" onclick="toggleCat('incidents')">
           <div class="card-title"><span>🔥</span><span class="inc-t">Incidents & Escalations</span><span class="chevron">▾</span></div>
@@ -458,19 +468,11 @@ let collapsed = { incidents: false, tasks: false, projects: false, clpse: false,
 let showAll = { incidents: false, tasks: false, projects: false, clpse: false, splitrole: false, personal: false, slack: false };
 const NOTES_LIMIT = 10;
 
-function setIncidentsVisible(visible) {
-  const row = document.getElementById('incidents-row');
-  if (!row) return;
-  row.style.display = visible ? 'block' : 'none';
-  if (false) { // legacy dead code kept for safety
-  }
-}
 function toggleCat(cat) {
   collapsed[cat] = !collapsed[cat];
   applyCollapsed(cat);
 }
 function expandCat(cat) {
-  if (cat === 'incidents') setIncidentsVisible(true);
   collapsed[cat] = false;
   applyCollapsed(cat);
 }
@@ -482,8 +484,7 @@ function applyCollapsed(cat) {
   hdr.classList.toggle('is-collapsed', collapsed[cat]);
 }
 function showIncidentsIfHasNotes() {
-  const hasNotes = state.notes.incidents && state.notes.incidents.length > 0;
-  setIncidentsVisible(hasNotes);
+  // Incidents card is always visible in layout — nothing to toggle
 }
 const today = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
 const todayKey = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
@@ -1339,12 +1340,6 @@ let _tt;function toast(msg){const el=document.getElementById('toast');el.textCon
 // ─── Init ─────────────────────────────────────────────────────────────────────
 document.getElementById('hdr-date').textContent=today;
 
-// Force-hide incidents immediately — runs before anything else, before server load
-// This is the belt-AND-suspenders approach: inline style + JS hide
-(function hideIncidentsNow(){
-  var row = document.getElementById('incidents-row');
-  if(row) row.style.display='none';
-})();
 
 loadFromServer();
 
