@@ -108,9 +108,9 @@ For each **accepted** calendar event today (skip declined events):
 
 ### Prioritized To-Do List
 Classify each Gmail unread and Slack item:
-- 🔴 **P1 — Urgent**: Direct questions needing response before noon, overdue items, anything blocking a colleague
-- 🟡 **P2 — Action Today**: Items needing action today but not time-critical right now
-- 🟢 **P3 — FYI**: Automated reports, notifications, no response needed
+- **P1 — Urgent**: Direct questions needing response before noon, overdue items, anything blocking a colleague
+- **P2 — Action Today**: Items needing action today but not time-critical right now
+- **P3 — FYI**: Automated reports, notifications, no response needed
 
 For each item: [Source] Title, 1-2 sentence context, direct link. Omit any tier that has zero items.
 If current time is past noon, relabel P1 as "overdue — action ASAP" rather than "before noon."
@@ -157,33 +157,43 @@ Do NOT use markdown tables — Slack doesn't render them. Use plain line-by-line
 
 **Message 2 — To-Do List**
 
-Each to-do item must have a blank line before the next one — this mirrors the email format and makes each item scannable at a glance. The item title should be bold. Each section header (P1/P2/P3) should have a blank line after it before the first item.
+Each to-do item must have a blank line before the next one — this makes each item scannable at a glance. Each section header (P1/P2/P3) should have a blank line after it before the first item.
+
+**TITLE BOLDING** — Bold the source tag + title text up to (but NOT including) the — separator. Everything after the — is plain text. This visually separates the "what" from the "who/detail". Format: `*[Email] Subject Title* — remaining description or context label`
 
 ```
 :white_check_mark: *PRIORITIZED TO-DO LIST*
 ━━━━━━━━━━━━━━━━━━━━━━
-:red_circle: *P1 — Urgent (respond before noon)*
+*P1 — Urgent (respond before noon)*
 
-[N]. *[Source] [Title]*
+[N]. *[Email] [Title]* — [remaining subject/context label]
 [1-2 sentence context]
 → [link]
 
-:large_yellow_circle: *P2 — Action Today*
-
-[N]. *[Source] [Title]*
+[N]. *[Slack] [Title]* — [remaining subject/context label]
 [1-2 sentence context]
 → [link]
 
-:large_green_circle: *P3 — FYI / No Response Needed*
+*P2 — Action Today*
 
-[N]. *[Source] [Title]*
+[N]. *[Calendar] [Title]* — [remaining subject/context label]
+[1-2 sentence context]
+→ [link]
+
+[N]. *[Slack Later] [Title]* — [remaining subject/context label]
+[1-2 sentence context]
+→ [link]
+
+*P3 — FYI / No Response Needed*
+
+[N]. *[SNOW] [Title]* — [remaining subject/context label]
 [1 sentence context]
 → [link]
 ```
 
 **Message 3 — Slack Follow-ups (Later)**
 ```
-:later: *SLACK - FOLLOW-UPS (LATER)*
+:later: *SLACK — FOLLOW-UPS (LATER)*
 ━━━━━━━━━━━━━━━━━━━━━━
 :red_circle: *Overdue / Time-Sensitive*
 
@@ -203,12 +213,12 @@ Saved: [date] → [permalink]
 :star: *STARRED EMAILS*
 ━━━━━━━━━━━━━━━━━━━━━━
 :pushpin: *Needs Follow-Up*
-[N]. [Sender] — [Subject]
+[N]. *[Sender]* — [Subject]
 [1 sentence context] | [Date]
 → [link]
 
 :bookmark: *Saved for Reference*
-[N]. [Sender] — [Subject]
+[N]. *[Sender]* — [Subject]
 [1 sentence context] | [Date]
 → [link]
 ```
