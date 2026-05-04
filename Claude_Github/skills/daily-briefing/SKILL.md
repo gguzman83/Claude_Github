@@ -159,41 +159,46 @@ Do NOT use markdown tables — Slack doesn't render them. Use plain line-by-line
 
 Each to-do item must have a blank line before the next one — this makes each item scannable at a glance. Each section header (P1/P2/P3) should have a blank line after it before the first item.
 
-**SOURCE COLOR CODING** — Prefix every source tag with a colored emoji so Guillermo can visually scan by source type at a glance. Use these consistently with no space between the emoji and the bracket:
-- 🔵 for [Email]
-- 🟠 for [Calendar]
-- 🟣 for [Slack]
-- 🔴 for [Slack Later]
-- 🟡 for [SNOW] or [Email/SNOW]
+**SOURCE COLOR CODING** — Prefix every source label with a colored emoji so Guillermo can visually scan by source type at a glance. Do NOT use square brackets `[ ]` around the source name — they break Slack's bold parser. Use a `|` pipe separator between the emoji+source and the title instead:
+- 🔵 for Email
+- 🟠 for Calendar
+- 🟣 for Slack
+- 🔴 for Slack Later
+- 🟡 for SNOW or Email/SNOW
 
-**TITLE BOLDING** — Bold the emoji + source tag + title text up to (but NOT including) the — separator. Everything after the — is plain text. This visually separates the "what" from the "who/detail". Format: `*🔵[Email] Subject Title* — remaining description or context label`
+**TITLE BOLDING** — Bold the emoji + source label + pipe + title text up to (but NOT including) the — separator. Everything after the — is plain text. This visually separates the "what" from the "who/detail". Format: `*🔵 Email | Subject Title* — remaining description or context label`
+
+**P1/P2/P3 SECTION HEADERS** — Use colored squares (not circles) for the priority tier headers:
+- 🟥 for P1
+- 🟧 for P2
+- 🟩 for P3
 
 ```
 :white_check_mark: *PRIORITIZED TO-DO LIST*
 ━━━━━━━━━━━━━━━━━━━━━━
-:red_circle: *P1 — Urgent (respond before noon)*
+🟥 *P1 — Urgent (respond before noon)*
 
-[N]. *🔵[Email] [Title]* — [remaining subject/context label]
+[N]. *🔵 Email | [Title]* — [remaining subject/context label]
 [1-2 sentence context]
 → [link]
 
-[N]. *🟣[Slack] [Title]* — [remaining subject/context label]
+[N]. *🟣 Slack | [Title]* — [remaining subject/context label]
 [1-2 sentence context]
 → [link]
 
-:large_yellow_circle: *P2 — Action Today*
+🟧 *P2 — Action Today*
 
-[N]. *🟠[Calendar] [Title]* — [remaining subject/context label]
+[N]. *🟠 Calendar | [Title]* — [remaining subject/context label]
 [1-2 sentence context]
 → [link]
 
-[N]. *🔴[Slack Later] [Title]* — [remaining subject/context label]
+[N]. *🔴 Slack Later | [Title]* — [remaining subject/context label]
 [1-2 sentence context]
 → [link]
 
-:large_green_circle: *P3 — FYI / No Response Needed*
+🟩 *P3 — FYI / No Response Needed*
 
-[N]. *🟡[SNOW] [Title]* — [remaining subject/context label]
+[N]. *🟡 SNOW | [Title]* — [remaining subject/context label]
 [1 sentence context]
 → [link]
 ```
