@@ -282,8 +282,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           </div>
         </div>
         <div class="card-body" id="live-log"
-          ondragover="event.preventDefault();event.currentTarget.style.outline='2px dashed #6366f1'"
-          ondragleave="event.currentTarget.style.outline=''"
+          ondragover="event.preventDefault();event.currentTarget.classList.add('drop-target')"
+          ondragleave="if(!event.currentTarget.contains(event.relatedTarget))event.currentTarget.classList.remove('drop-target')"
           ondrop="dropToLive(event)"></div>
       </div>
     </div>
@@ -1560,7 +1560,7 @@ function bodyDrop(e, tgtCat) {
 
 function dropToLive(e) {
   e.preventDefault();
-  if(e.currentTarget) e.currentTarget.style.outline='';
+  if(e.currentTarget) e.currentTarget.classList.remove('drop-target');
   if (!_drag) return;
   const { cat: srcCat, id: srcId } = _drag;
   if(srcCat==='_live'){_drag=null;return;} // already handled by liveNoteDrop
