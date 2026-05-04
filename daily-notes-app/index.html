@@ -196,6 +196,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
                   <option value="splitrole">🟡 Split Role</option>
                   <option value="slack">💬 Follow-ups</option>
                   <option value="personal">📝 Personal Notes</option>
+                  <option value="keepwatch">👀 Keep Watch</option>
                 </select>
                 <button type="submit" class="btn btn-primary" style="width:100%">Add</button>
               </div>
@@ -273,18 +274,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
         <div class="card-body" id="list-slack" ondragover="bodyDragOver(event,'slack')" ondragleave="bodyDragLeave(event,'slack')" ondrop="bodyDrop(event,'slack')"></div>
       </div>
-      <div class="card" id="card-live">
-        <div class="card-hdr lv-hdr" id="hdr-live" onclick="toggleLive()">
-          <div class="card-title"><span>👀</span><span class="lv-t">Keep Watch - Monitoring</span><span class="chevron" id="chevron-live">▾</span></div>
+      <div class="card" id="card-keepwatch">
+        <div class="card-hdr lv-hdr" id="hdr-keepwatch" onclick="toggleCat('keepwatch')">
+          <div class="card-title"><span>👀</span><span class="lv-t">Keep Watch - Monitoring</span><span class="chevron" id="chevron-keepwatch">▾</span></div>
           <div class="badges">
-            <span class="badge lv-b" id="live-cnt">0</span>
-            <button class="ico-btn" onclick="event.stopPropagation();startInlineLive()" title="Add note" style="font-size:14px;font-weight:700;color:#c2410c;padding:0 4px">＋</button>
+            <span class="badge lv-b" id="cnt-keepwatch">0</span>
+            <span class="badge done-b" id="done-keepwatch" style="display:none"></span>
+            <button class="ico-btn" onclick="event.stopPropagation();startInlineAdd('keepwatch')" title="Add note" style="font-size:14px;font-weight:700;color:#c2410c;padding:0 4px">＋</button>
           </div>
         </div>
-        <div class="card-body" id="live-log"
-          ondragover="event.preventDefault();event.currentTarget.style.outline='2px dashed #6366f1'"
-          ondragleave="event.currentTarget.style.outline=''"
-          ondrop="dropToLive(event)"></div>
+        <div class="card-body" id="list-keepwatch"
+          ondragover="bodyDragOver(event,'keepwatch')"
+          ondragleave="bodyDragLeave(event,'keepwatch')"
+          ondrop="bodyDrop(event,'keepwatch')"></div>
       </div>
     </div>
   </div>
@@ -414,6 +416,11 @@ const SEED = {
       {id:'sl5',text:'[Guillermo → Mo Hamilton / Ritu Das](https://intuit.enterprise.slack.com/archives/C0AUX40H0AE/p1776984566263149) — 1-time exception: note in asset record, confirm laptop available',detail:'Let them know to come pick it up once laptop confirmed',done:false,source:'Slack Later',ts:Date.now()-540000},
       {id:'sl6',text:'[Vikas Chandra Chaudhary](https://intuit.enterprise.slack.com/archives/D9PH7BV1B/p1777124989326579) — Review updated Managers Guide + HTML file',detail:'Mock data except Gilbert (from file + SNOW reports). [Managers Guide](https://docs.google.com/document/d/1Tio8g81fSBQIXLV1guzKluz3dBy-XiQOCvBZPytwyYk/edit)',done:false,source:'Slack Later',ts:Date.now()-43200000},
       {id:'sl7',text:'[Hieu Giap](https://intuit.enterprise.slack.com/archives/C0AUYNA1Z8T/p1777051657409649) — ~6 free-range laptops for MC leadership AI tools testing',detail:'CPC & AI Sandbox limitations (no OpenClaw/Hermes Agent) — similar to Claude Desktop testing setup a few months ago',done:false,source:'Slack Later',ts:Date.now()-86400000},
+    ],
+    keepwatch: [
+      {id:'kw1',text:'End of Year Review — t4i Care Manager ratings / FY26 Talent Mid Year / EOY',detail:'',done:false,source:'',ts:Date.now()-3000},
+      {id:'kw2',text:'Review Mgr Specific Rubric: Tech People Manager Rubric (non-engineering)_2026',detail:'',done:false,source:'',ts:Date.now()-2000},
+      {id:'kw3',text:'Received Asset Tags 2/20 — set up time with Cory Leeson before using CK workflow',detail:'',done:false,source:'',ts:Date.now()-1000},
     ]
   },
   live: [
@@ -459,8 +466,8 @@ document.addEventListener('keydown', function(e) {
   }
 });
 // Collapse state for all sections (toggle on header click)
-let collapsed = { incidents: false, tasks: false, projects: false, clpse: false, splitrole: false, personal: false, slack: false };
-let showAll = { incidents: false, tasks: false, projects: false, clpse: false, splitrole: false, personal: false, slack: false };
+let collapsed = { incidents: false, tasks: false, projects: false, clpse: false, splitrole: false, personal: false, slack: false, keepwatch: false };
+let showAll = { incidents: false, tasks: false, projects: false, clpse: false, splitrole: false, personal: false, slack: false, keepwatch: false };
 const NOTES_LIMIT = 10;
 
 function toggleCat(cat) {
@@ -605,9 +612,11 @@ function loadFromServer(){
       // Ensure all categories always exist (handles old saved data missing newer cats)
       // Migrate old meetings → clpse if needed
       if(state.notes.meetings && !state.notes.clpse){state.notes.clpse=state.notes.meetings;delete state.notes.meetings;}
-      ['incidents','tasks','projects','clpse','splitrole','personal','slack'].forEach(c=>{
+      ['incidents','tasks','projects','clpse','splitrole','personal','slack','keepwatch'].forEach(c=>{
         if(!state.notes[c]) state.notes[c]=[];
       });
+      // Migrate old live entries to keepwatch
+      if(data.live&&data.live.length){data.live.forEach(e=>{if(!state.notes.keepwatch.find(n=>n.id===e.id)){state.notes.keepwatch.push({id:e.id,text:e.text,detail:'',done:false,source:'',ts:e.ts});}});}
       renderAll();
     })
     .withFailureHandler(err=>{
@@ -634,9 +643,9 @@ function scheduleSave(){
 
 // ─── Render ───────────────────────────────────────────────────────────────────
 function renderAll(){
-  ['incidents','tasks','projects','clpse','splitrole','personal','slack'].forEach(cat => { renderCat(cat); applyCollapsed(cat); });
+  ['incidents','tasks','projects','clpse','splitrole','personal','slack','keepwatch'].forEach(cat => { renderCat(cat); applyCollapsed(cat); });
   showIncidentsIfHasNotes();
-  renderLive();updateCounts();
+  updateCounts();
 }
 
 function renderCat(cat){
@@ -726,135 +735,9 @@ function renderCat(cat){
   }
 }
 
-let liveCollapsed = false;
-function toggleLive(){
-  liveCollapsed = !liveCollapsed;
-  const body = document.getElementById('live-log');
-  const chev = document.getElementById('chevron-live');
-  if(body) body.classList.toggle('collapsed', liveCollapsed);
-  if(chev) chev.style.transform = liveCollapsed ? 'rotate(-90deg)' : '';
-}
-function startInlineLive(){
-  const el = document.getElementById('live-log');
-  if(!el) return;
-  const tid = 'inline-inp-live';
-  const pid = 'inline-prev-live';
-  el.innerHTML = `<div class="edit-form" style="margin:8px 12px 10px">
-    <div style="font-size:11px;color:#6366f1;margin-bottom:5px;opacity:.7">✏️ <kbd style="background:#ede9fe;border-radius:3px;padding:1px 4px;font-size:10px">⌘B</kbd> bold &nbsp;·&nbsp; <kbd style="background:#ede9fe;border-radius:3px;padding:1px 4px;font-size:10px">⌘I</kbd> italic &nbsp;·&nbsp; <kbd style="background:#ede9fe;border-radius:3px;padding:1px 4px;font-size:10px">⌘U</kbd> underline &nbsp;·&nbsp; <kbd style="background:#ede9fe;border-radius:3px;padding:1px 4px;font-size:10px">⌘⇧X</kbd> strikethrough &nbsp;·&nbsp; <kbd style="background:#ede9fe;border-radius:3px;padding:1px 4px;font-size:10px">⌘K</kbd> link</div>
-    <textarea id="${tid}" placeholder="Jot anything — no category needed, just flow…"
-      onkeydown="handleTabKey(event,'${tid}');if(event.key==='Enter'&&!event.metaKey&&!event.ctrlKey){event.preventDefault();commitInlineLive();}if(event.key==='Escape'){renderLive();}handleLinkHotkey(event,'${tid}')"
-      onpaste="handlePasteWithLinks(event,'${tid}')"
-      oninput="autoCheckEditPreview('${tid}','${pid}')"
-      style="width:100%;box-sizing:border-box;font-size:13px;min-height:60px;resize:vertical"></textarea>
-    <div id="${pid}" style="display:none;font-size:13px;color:#374151;padding:6px 8px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;margin-top:4px;line-height:1.5"></div>
-    <div id="${pid}-lbl" style="display:none;font-size:10px;color:#94a3b8;margin:2px 0 4px">↑ preview</div>
-    <div class="edit-acts">
-      <button class="btn btn-primary btn-sm" onclick="commitInlineLive()">Add</button>
-      <button class="btn btn-sm btn-outline" onclick="renderLive()">Cancel</button>
-      <button class="btn btn-sm fmt-btn" onmousedown="event.preventDefault()" onclick="applyInlineFormat('${tid}','**');autoCheckEditPreview('${tid}','${pid}')" title="Bold (⌘B)"><strong>B</strong></button>
-      <button class="btn btn-sm fmt-btn" onmousedown="event.preventDefault()" onclick="applyInlineFormat('${tid}','_');autoCheckEditPreview('${tid}','${pid}')" title="Italic (⌘I)"><em>I</em></button>
-      <button class="btn btn-sm fmt-btn" onmousedown="event.preventDefault()" onclick="applyInlineFormat('${tid}','__');autoCheckEditPreview('${tid}','${pid}')" title="Underline (⌘U)"><u>U</u></button>
-      <button class="btn btn-sm fmt-btn" onmousedown="event.preventDefault()" onclick="applyInlineFormat('${tid}','~~');autoCheckEditPreview('${tid}','${pid}')" title="Strikethrough (⌘⇧X)"><s>S</s></button>
-      <button class="btn btn-sm fmt-btn" onmousedown="event.preventDefault()" onclick="applyBullet('${tid}');autoCheckEditPreview('${tid}','${pid}')" title="Bullet">•</button>
-      <button class="btn btn-sm" onmousedown="event.preventDefault()" onclick="openLinkDialog('${tid}')" style="background:#ede9fe;color:#6366f1;border:1.5px solid #c4b5fd;font-size:12px">🔗 Link</button>
-    </div>
-  </div>`;
-  setTimeout(()=>{const ta=document.getElementById(tid);if(ta)ta.focus();},50);
-}
-function commitInlineLive(){
-  const inp = document.getElementById('inline-inp-live');
-  if(!inp) return;
-  const txt = inp.value.trim();
-  if(!txt){renderLive();return;}
-  state.live.unshift({id:'l'+Date.now(),text:txt,ts:Date.now()});
-  scheduleSave();renderLive();toast('👀 Added to Keep Watch');
-}
-function renderLive(){
-  const log=document.getElementById('live-log');
-  if(!log) return;
-  const cnt = state.live ? state.live.length : 0;
-  document.getElementById('live-cnt').textContent=cnt;
-  if(!state.live||state.live.length===0){
-    log.innerHTML=`<div style="cursor:pointer;color:#94a3b8;padding:20px 16px;text-align:center;user-select:none;" onclick="startInlineLive()" title="Click to add a note">
-      <span style="font-size:18px;display:block;margin-bottom:4px">＋</span>
-      <span style="font-size:12px">Click to add a note</span>
-    </div>`;
-    log.style.cursor='pointer';
-    log.onclick=()=>startInlineLive();
-    return;
-  }
-  log.style.cursor='';log.onclick=null;
-  log.innerHTML=state.live.map(e=>`
-    <div class="note-row" id="lrow-${e.id}" onmouseover="this.querySelector('.note-acts').style.opacity=1" onmouseout="this.querySelector('.note-acts').style.opacity=0">
-      <div class="note-main" style="flex:1;min-width:0">
-        <span onclick="startEditLive('${e.id}')" style="cursor:pointer" title="Click to edit">${linkify(e.text)}</span>
-        <div style="font-size:11px;color:#94a3b8;margin-top:2px">${fmtT(e.ts)}</div>
-      </div>
-      <div class="note-acts" style="opacity:0;transition:opacity .15s">
-        <button class="ico-btn" onclick="event.stopPropagation();startEditLive('${e.id}')" title="Edit">✏️</button>
-        <button class="ico-btn" onclick="event.stopPropagation();pinLiveNote('${e.id}')" title="Pin & Archive" style="font-size:13px">📌</button>
-        <button class="ico-btn del" onclick="event.stopPropagation();deleteLive('${e.id}')" title="Delete">🗑️</button>
-      </div>
-    </div>`).join('');
-}
-
-function pinLiveNote(id) {
-  const entry = state.live.find(e => e.id === id);
-  if (!entry) return;
-  if (!confirm('Pin "' + entry.text.substring(0, 60) + '…" to Pinned Notes?')) return;
-  // Remove from live notes
-  state.live = state.live.filter(e => e.id !== id);
-  scheduleSave();
-  renderLive();
-  // Write to doc's PINNED section
-  google.script.run
-    .withSuccessHandler(r => {
-      if (r && r.success) {
-        toast('📌 Pinned to your doc!');
-        pinnedCache = null;
-        if (document.getElementById('tab-pinned').style.display !== 'none') loadPinnedNotes();
-      } else {
-        toast('⚠️ Saved locally but doc write failed');
-      }
-    })
-    .withFailureHandler(() => toast('⚠️ Could not write to doc'))
-    .archiveNoteToDoc(entry.text, '', 'live', Date.now());
-}
-function startEditLive(id){
-  const entry=state.live.find(e=>e.id===id);
-  if(!entry)return;
-  const row=document.getElementById('lrow-'+id);
-  if(!row)return;
-  row.innerHTML=`
-    <div style="display:flex;flex-direction:column;flex:1;gap:4px">
-      <div style="display:flex;align-items:flex-start;gap:6px">
-        <span class="log-time" style="margin-top:4px">${fmtT(entry.ts)}</span>
-        <textarea id="ledit-${id}" rows="1" style="flex:1;font-size:13px;padding:4px 8px;border:1.5px solid #6366f1;border-radius:6px;color:#374151;outline:none;resize:none;overflow:hidden;line-height:1.5;font-family:inherit"
-          onkeydown="handleTabKey(event,'ledit-${id}');if(event.key==='Enter'&&!event.metaKey&&!event.ctrlKey){event.preventDefault();commitEditLive('${id}');}if(event.key==='Escape'){renderLive();}if(event.metaKey&&event.key==='Enter'){event.preventDefault();document.execCommand('insertText',false,'\\n');autoResizeTA(this);}handleLinkHotkey(event,'ledit-${id}');autoResizeTA(this)"
-          onpaste="handlePasteWithLinks(event,'ledit-${id}')"
-          oninput="autoResizeTA(this);autoCheckEditPreview('ledit-${id}','lprev-${id}')"
-          onfocus="autoResizeTA(this)">${esc(entry.text)}</textarea>
-        <button class="ico-btn" onclick="commitEditLive('${id}')" style="font-size:11px;color:#6366f1;margin-top:2px">✓</button>
-        <button class="ico-btn del" onclick="deleteLive('${id}')" style="opacity:.5;font-size:14px;margin-top:2px">×</button>
-      </div>
-      <div id="lprev-${id}" style="display:none;font-size:12px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;margin-left:54px;line-height:1.5"></div>
-    </div>`;
-  setTimeout(()=>{const i=document.getElementById('ledit-'+id);if(i){autoResizeTA(i);i.focus();i.select();}},30);
-}
-function commitEditLive(id){
-  const inp=document.getElementById('ledit-'+id);
-  if(!inp)return; // already committed via blur+Enter double-fire guard
-  const txt=inp.value.trim();
-  inp.id=''; // prevent double-fire from blur after Enter
-  if(!txt){deleteLive(id);return;}
-  const entry=state.live.find(e=>e.id===id);
-  if(entry){entry.text=txt;scheduleSave();}
-  renderLive();
-}
-
 function updateCounts(){
   let total=0;
-  ['incidents','tasks','projects','clpse','splitrole','personal','slack'].forEach(cat=>{
+  ['incidents','tasks','projects','clpse','splitrole','personal','slack','keepwatch'].forEach(cat=>{
     const list=state.notes[cat]||[];
     const done=list.filter(n=>n.done).length;
     document.getElementById('cnt-'+cat).textContent=list.length;
@@ -879,13 +762,13 @@ function addNote(e){
   renderCat(cat);updateCounts();
   inp.value='';inp.style.height='auto';inp.focus();
   const cp=document.getElementById('capture-preview');if(cp)cp.style.display='none';
-  const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal Notes',slack:'💬 Follow-ups'};
+  const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal Notes',slack:'💬 Follow-ups',keepwatch:'👀 Keep Watch'};
   toast('Added to '+labels[cat]);
 }
 
 function startInlineAdd(cat){
   const el=document.getElementById('list-'+cat);
-  const labels={incidents:'Incidents & Escalations',tasks:'Tasks & Action Items',projects:'Projects & Initiatives',clpse:'CLPSE',splitrole:'Split Role',personal:'My Personal Notes',slack:'Follow-ups'};
+  const labels={incidents:'Incidents & Escalations',tasks:'Tasks & Action Items',projects:'Projects & Initiatives',clpse:'CLPSE',splitrole:'Split Role',personal:'My Personal Notes',slack:'Follow-ups',keepwatch:'Keep Watch - Monitoring'};
   const tid='inline-inp-'+cat;
   const pid='inline-prev-'+cat;
   el.innerHTML=`<div class="edit-form" style="margin:8px 12px 10px">
@@ -921,7 +804,7 @@ function commitInlineAdd(cat){
   expandCat(cat);
   scheduleSave();
   renderCat(cat);updateCounts();
-  const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal Notes',slack:'💬 Follow-ups'};
+  const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal Notes',slack:'💬 Follow-ups',keepwatch:'👀 Keep Watch'};
   toast('Added to '+labels[cat]);
 }
 function toggleNote(cat,id,checked){
@@ -941,8 +824,9 @@ function moveToLive(cat,id){
   const idx=state.notes[cat].findIndex(n=>n.id===id);
   if(idx===-1)return;
   const [note]=state.notes[cat].splice(idx,1);
-  state.live.unshift({id:'l'+Date.now(),text:note.text,ts:Date.now()});
-  scheduleSave();renderCat(cat);updateCounts();renderLive();
+  if(!state.notes.keepwatch) state.notes.keepwatch=[];
+  state.notes.keepwatch.unshift({id:'n'+Date.now(),text:note.text,detail:note.detail||'',done:false,source:note.source||'',ts:Date.now()});
+  scheduleSave();renderCat(cat);renderCat('keepwatch');updateCounts();
   toast('👀 Moved to Keep Watch');
 }
 
@@ -959,16 +843,6 @@ function saveEdit(cat,id){
 }
 function cancelEdit(){editingId=null;renderAll();}
 
-function addLive(){
-  const inp=document.getElementById('live-inp');
-  const txt=inp.value.trim();if(!txt)return;
-  state.live.unshift({id:'l'+Date.now(),text:txt,ts:Date.now()});
-  scheduleSave();renderLive();inp.value='';inp.style.height='auto';inp.focus();
-}
-function deleteLive(id){
-  state.live=state.live.filter(e=>e.id!==id);
-  scheduleSave();renderLive();
-}
 function autoResizeTA(el){
   el.style.height='auto';
   el.style.height=el.scrollHeight+'px';
@@ -986,7 +860,6 @@ function captureKeydown(e,inputId){
       // Enter = submit
       e.preventDefault();
       if(inputId==='note-inp') addNote(e);
-      else if(inputId==='live-inp') addLive();
     }
   }
 }
@@ -1006,11 +879,6 @@ function buildSyncText(){
     });
     lines.push('');
   });
-  if (state.live && state.live.length > 0) {
-    lines.push('1. Notes:');
-    state.live.forEach((e,i) => lines.push(`   ${i+1}. ${fmtT(e.ts)}  ${e.text}`));
-    lines.push('');
-  }
   return lines.join('\n');
 }
 
@@ -1080,17 +948,6 @@ function buildSyncHtml(){
     });
     html += `</div>`;
   });
-  if (state.live && state.live.length > 0) {
-    html += `<div style="margin-bottom:18px">`;
-    html += `<div style="margin-bottom:6px;font-weight:700;color:#1e293b">👀 Keep Watch - Monitoring:</div>`;
-    state.live.forEach((e, i) => {
-      html += `<div style="display:flex;gap:8px;padding-left:16px;margin-bottom:10px;align-items:flex-start">`;
-      html += `<span style="flex-shrink:0;min-width:18px;color:#64748b;padding-top:1px">${i+1}.</span>`;
-      html += `<div style="flex:1;min-width:0"><span style="color:#94a3b8;font-size:11px">${esc(fmtT(e.ts))}</span>&nbsp; ${linkifyInline(e.text)}</div>`;
-      html += `</div>`;
-    });
-    html += `</div>`;
-  }
   html += `</div>`;
   return html;
 }
@@ -1106,6 +963,7 @@ function _buildSyncSections(){
   add('CLPSE:', state.notes.clpse);
   add('Split Role:', state.notes.splitrole);
   add('My Personal Notes:', state.notes.personal);
+  add('👀 Keep Watch - Monitoring:', state.notes.keepwatch);
   return out;
 }
 
@@ -1454,7 +1312,7 @@ function noteDrop(e, tgtCat, tgtId) {
   scheduleSave();
   renderAll();
   if (srcCat !== tgtCat) {
-    const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal',slack:'💬 Slack'};
+    const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal',slack:'💬 Slack',keepwatch:'👀 Keep Watch'};
     toast('Moved to ' + labels[tgtCat]);
   }
 }
@@ -1487,24 +1345,9 @@ function bodyDrop(e, tgtCat) {
   scheduleSave();
   renderAll();
   if (srcCat !== tgtCat) {
-    const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal',slack:'💬 Slack'};
+    const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal',slack:'💬 Slack',keepwatch:'👀 Keep Watch'};
     toast('Moved to ' + labels[tgtCat]);
   }
-}
-
-function dropToLive(e) {
-  e.preventDefault();
-  e.currentTarget.style.outline='';
-  if (!_drag) return;
-  const { cat: srcCat, id: srcId } = _drag;
-  const srcList = state.notes[srcCat];
-  const srcIdx  = srcList.findIndex(n => n.id === srcId);
-  if (srcIdx === -1) { noteDragEnd(); return; }
-  const [note] = srcList.splice(srcIdx, 1);
-  state.live.unshift({id:'l'+Date.now(), text:note.text, ts:Date.now()});
-  _drag = null;
-  scheduleSave(); renderAll();
-  toast('👀 Moved to Keep Watch');
 }
 
 // ─── Paste with hyperlink preservation ───────────────────────────────────────
@@ -1652,18 +1495,6 @@ function updateCapturePreview() {
   const ta  = document.getElementById('note-inp');
   const box = document.getElementById('capture-preview');
   const txt = document.getElementById('capture-preview-text');
-  if (!ta || !box || !txt) return;
-  if (hasFormatting(ta.value)) {
-    txt.innerHTML = linkify(ta.value);
-    box.style.display = 'block';
-  } else {
-    box.style.display = 'none';
-  }
-}
-function updateLivePreview() {
-  const ta  = document.getElementById('live-inp');
-  const box = document.getElementById('live-preview');
-  const txt = document.getElementById('live-preview-text');
   if (!ta || !box || !txt) return;
   if (hasFormatting(ta.value)) {
     txt.innerHTML = linkify(ta.value);
