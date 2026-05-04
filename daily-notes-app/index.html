@@ -1491,11 +1491,19 @@ function noteDrop(e, tgtCat, tgtId) {
   const el  = document.getElementById('note-' + tgtId);
   const rect = el ? el.getBoundingClientRect() : null;
   const insertBefore = rect ? (e.clientY < rect.top + rect.height / 2) : true;
-  // Remove from source
-  const srcList = state.notes[srcCat];
-  const srcIdx  = srcList.findIndex(n => n.id === srcId);
-  if (srcIdx === -1) { noteDragEnd(); return; }
-  const [note] = srcList.splice(srcIdx, 1);
+  // Pull note from source (state.live or state.notes)
+  let note;
+  if (srcCat === '_live') {
+    const srcIdx = state.live.findIndex(n => n.id === srcId);
+    if (srcIdx === -1) { noteDragEnd(); return; }
+    [note] = state.live.splice(srcIdx, 1);
+    note = {id:'n'+Date.now(), text:note.text, detail:note.detail||'', done:note.done||false, source:note.source||'', ts:note.ts};
+  } else {
+    const srcList = state.notes[srcCat];
+    const srcIdx  = srcList.findIndex(n => n.id === srcId);
+    if (srcIdx === -1) { noteDragEnd(); return; }
+    [note] = srcList.splice(srcIdx, 1);
+  }
   // Insert in target
   const tgtList = state.notes[tgtCat];
   let tgtIdx = tgtList.findIndex(n => n.id === tgtId);
@@ -1505,10 +1513,8 @@ function noteDrop(e, tgtCat, tgtId) {
   _drag = null;
   scheduleSave();
   renderAll();
-  if (srcCat !== tgtCat) {
-    const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal',slack:'💬 Slack'};
-    toast('Moved to ' + labels[tgtCat]);
-  }
+  const labels={incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal',slack:'💬 Follow-ups'};
+  if (srcCat !== tgtCat) toast('Moved to ' + (labels[tgtCat]||tgtCat));
 }
 
 function bodyDragOver(e, cat) {
@@ -1530,10 +1536,18 @@ function bodyDrop(e, tgtCat) {
   // If dropped on a note child, noteDrop already handled it
   if (e.target.closest && e.target.closest('.note')) return;
   const { cat: srcCat, id: srcId } = _drag;
-  const srcList = state.notes[srcCat];
-  const srcIdx  = srcList.findIndex(n => n.id === srcId);
-  if (srcIdx === -1) { noteDragEnd(); return; }
-  const [note] = srcList.splice(srcIdx, 1);
+  let note;
+  if (srcCat === '_live') {
+    const srcIdx = state.live.findIndex(n => n.id === srcId);
+    if (srcIdx === -1) { noteDragEnd(); return; }
+    [note] = state.live.splice(srcIdx, 1);
+    note = {id:'n'+Date.now(), text:note.text, detail:note.detail||'', done:note.done||false, source:note.source||'', ts:note.ts};
+  } else {
+    const srcList = state.notes[srcCat];
+    const srcIdx  = srcList.findIndex(n => n.id === srcId);
+    if (srcIdx === -1) { noteDragEnd(); return; }
+    [note] = srcList.splice(srcIdx, 1);
+  }
   state.notes[tgtCat].push(note);
   _drag = null;
   scheduleSave();
