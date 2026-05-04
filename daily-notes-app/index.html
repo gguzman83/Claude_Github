@@ -600,30 +600,47 @@ function autoCat(t){
 }
 
 // ─── Persistence via Google Apps Script ───────────────────────────────────────
+function _dismissLoader(){
+  document.getElementById('loader').style.display='none';
+  document.getElementById('main-ui').style.display='block';
+}
+function _migrateAndRender(data){
+  if(data && data.notes){
+    state.notes=data.notes;
+    state.live=data.live||[];
+  }
+  if(state.notes.meetings && !state.notes.clpse){state.notes.clpse=state.notes.meetings;delete state.notes.meetings;}
+  ['incidents','tasks','projects','clpse','splitrole','personal','slack','keepwatch'].forEach(c=>{
+    if(!state.notes[c]) state.notes[c]=[];
+  });
+  if(data&&data.live&&data.live.length){data.live.forEach(e=>{if(!state.notes.keepwatch.find(n=>n.id===e.id)){state.notes.keepwatch.push({id:e.id,text:e.text,detail:'',done:false,source:'',ts:e.ts});}});}
+  renderAll();
+}
 function loadFromServer(){
+  let settled = false;
+  // Safety net: if GAS never responds in 8 seconds, load with local seed data
+  const timeout = setTimeout(()=>{
+    if(settled) return;
+    settled = true;
+    _dismissLoader();
+    _migrateAndRender(null);
+    toast('⚠️ Server timeout — using local data');
+  }, 8000);
   google.script.run
     .withSuccessHandler(data=>{
-      document.getElementById('loader').style.display='none';
-      document.getElementById('main-ui').style.display='block';
-      if(data && data.notes){
-        state.notes=data.notes;
-        state.live=data.live||[];
-      }
-      // Ensure all categories always exist (handles old saved data missing newer cats)
-      // Migrate old meetings → clpse if needed
-      if(state.notes.meetings && !state.notes.clpse){state.notes.clpse=state.notes.meetings;delete state.notes.meetings;}
-      ['incidents','tasks','projects','clpse','splitrole','personal','slack','keepwatch'].forEach(c=>{
-        if(!state.notes[c]) state.notes[c]=[];
-      });
-      // Migrate old live entries to keepwatch
-      if(data.live&&data.live.length){data.live.forEach(e=>{if(!state.notes.keepwatch.find(n=>n.id===e.id)){state.notes.keepwatch.push({id:e.id,text:e.text,detail:'',done:false,source:'',ts:e.ts});}});}
-      renderAll();
+      if(settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      _dismissLoader();
+      _migrateAndRender(data);
     })
     .withFailureHandler(err=>{
+      if(settled) return;
+      settled = true;
+      clearTimeout(timeout);
       console.error('Load failed:',err);
-      document.getElementById('loader').style.display='none';
-      document.getElementById('main-ui').style.display='block';
-      renderAll();
+      _dismissLoader();
+      _migrateAndRender(null);
       toast('⚠️ Using local data — server sync unavailable');
     })
     .loadNotes();
