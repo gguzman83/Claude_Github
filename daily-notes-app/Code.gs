@@ -679,20 +679,32 @@ function archiveNoteToDoc(noteText, noteDetail, category, timestamp) {
       var subItem = pinnedBody.insertListItem(insertAt, noteDetail.trim());
       subItem.setNestingLevel(1);
       subItem.setGlyphType(DocumentApp.GlyphType.HOLLOW_SQUARE);
+      subItem.setLineSpacing(1.15);
+      subItem.setSpacingBefore(2);
+      subItem.setSpacingAfter(2);
       if (!applyMarkdown(subItem, noteDetail.trim())) {
-        subItem.editAsText().setFontFamily(FONT).setFontSize(12).setBold(false).setItalic(false);
+        var subT = subItem.editAsText();
+        subT.setFontFamily(FONT);
+        subT.setFontSize(12);
+        subT.setBold(false);
+        subT.setItalic(false);
       }
-      subItem.setSpacingBefore(2); subItem.setSpacingAfter(2);
     }
 
     // ── Insert main item — render markdown so **bold** and links display properly ──
     var mainItem = pinnedBody.insertListItem(insertAt, mainText);
     mainItem.setNestingLevel(0);
     mainItem.setGlyphType(DocumentApp.GlyphType.HOLLOW_SQUARE);
+    mainItem.setLineSpacing(1.15);
+    mainItem.setSpacingBefore(4);
+    mainItem.setSpacingAfter(4);
     if (!applyMarkdown(mainItem, mainText)) {
-      mainItem.editAsText().setFontFamily(FONT).setFontSize(12).setBold(false).setItalic(false);
+      var mainT = mainItem.editAsText();
+      mainT.setFontFamily(FONT);
+      mainT.setFontSize(12);
+      mainT.setBold(false);
+      mainT.setItalic(false);
     }
-    mainItem.setSpacingBefore(4); mainItem.setSpacingAfter(4);
 
     doc.saveAndClose();
     return { success: true };
