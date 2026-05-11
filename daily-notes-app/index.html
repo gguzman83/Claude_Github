@@ -1098,15 +1098,17 @@ function buildSyncHtml(){
     // Restore placeholders
     let prev;
     do { prev = r; r = r.replace(/\x00P(\d+)\x00/g, (_, i) => ph[+i]); } while (r !== prev);
-    // Convert lines to plain text — strip bullet prefixes, join with <br>
+    // Convert lines to HTML — preserve bullets with indentation, join with <br>
     r = r.split('\n')
       .map(line => {
+        const indent = (line.match(/^(\s*)/) || ['',''])[1].length;
         const t = line.trimStart();
-        if (t.startsWith('- ') || t.startsWith('* ')) return t.slice(2);
-        if (t.startsWith('• '))                        return t.slice(2);
-        return line;
+        const nbsp = '&nbsp;'.repeat(Math.min(indent * 2, 12));
+        if (t.startsWith('- ') || t.startsWith('* ')) return `${nbsp}• ${t.slice(2)}`;
+        if (t.startsWith('• '))                        return `${nbsp}• ${t.slice(2)}`;
+        return line.trim() ? line : null;
       })
-      .filter(l => l.trim())
+      .filter(Boolean)
       .join('<br>');
     return r;
   }
