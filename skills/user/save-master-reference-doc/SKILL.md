@@ -47,7 +47,7 @@ Build a changelog list — one line per change. Example format:
 
 Find the current version by checking the workspace docs folder:
 
-    ls ~/Desktop/Claude_Desktop_MTV/docs/Claude_Environment_Master_Reference_v*.docx
+    ls ~/Documents/Claude/Claude_Desktop_MTV/docs/Claude_Environment_Master_Reference_v*.docx
 
 Parse the highest version number and increment by 1. Format: v3, v4, etc.
 
@@ -75,8 +75,8 @@ Key things to update in the rebuilt doc:
 6. Section 3 (Key Config) — update any changed values
 
 Save to:
-- `~/Desktop/Claude_Desktop_MTV/docs/Claude_Environment_Master_Reference_v[N].docx`
-- `~/Desktop/Claude_Desktop_MTV/docs/Claude_Environment_Master_Reference_LATEST.docx`
+- `~/Documents/Claude/Claude_Desktop_MTV/docs/Claude_Environment_Master_Reference_v[N].docx`
+- `~/Documents/Claude/Claude_Desktop_MTV/docs/Claude_Environment_Master_Reference_LATEST.docx`
 
 Call present_files with the output path.
 
@@ -88,10 +88,10 @@ After saving the new version, move any previous versioned files out of `docs/` i
 the `Master_Reference_doc/` archive folder. This keeps the `docs/` root clean — only
 the freshly built version and LATEST live there.
 
-**Workspace folder** (`~/Desktop/Claude_Desktop_MTV/docs/`):
+**Workspace folder** (`~/Documents/Claude/Claude_Desktop_MTV/docs/`):
 
 ```bash
-DOCS=~/Desktop/Claude_Desktop_MTV/docs
+DOCS=~/Documents/Claude/Claude_Desktop_MTV/docs
 ARCHIVE="$DOCS/Master_Reference_doc"
 NEW_FILE="Claude_Environment_Master_Reference_v[N].docx"   # substitute actual version
 
@@ -121,7 +121,7 @@ Apply the same move using `git mv` in the local repo before committing (handled 
 Commit the new version, the archive moves, and any updated LATEST in one operation:
 
 ```bash
-REPO=~/Desktop/Claude_Desktop_MTV/Claude_Github
+REPO=~/Documents/Claude/Claude_Desktop_MTV/Claude_Github
 
 # Create archive folder in repo if needed
 mkdir -p "$REPO/docs/Master_Reference_doc"

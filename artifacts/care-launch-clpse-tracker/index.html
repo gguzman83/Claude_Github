@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Care Launch Clpse Tracker",
+  "schemaVersion": 1,
+  "description": "Live Care Launch CLPSE In Progress tracker — pulls from Smartsheet filtered to CLPSE Project Status = \"In Progress\", shows CLPSE name, Request Name, Created Date, Expected Launch Date, Latest Comment, and flags overdue items. Has a \"Send Update Request to Slack\" button that composes and sends a formatted message to #t4i-clpse-carelaunch (C05E9TRFC8K) asking CLPSEs for updates, reminding completed ones to fill out their SOP, and requesting everyone ACK the message.",
+  "mcpTools": [
+    "mcp__aab8ef50-5bd3-4d06-bb8c-e8bbcfccadbc__get_sheet_summary",
+    "mcp__5bb57945-e88b-477f-b809-be9c74056e5c__slack_send_message",
+    "mcp__5bb57945-e88b-477f-b809-be9c74056e5c__slack_search_users"
+  ],
+  "mcpServerNames": [
+    "Smartsheet",
+    "Slack",
+    "Slack"
+  ]
+}
+</script>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Care Launch – CLPSE Tracker</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs@5.0.2/dist/theme/mermaid.min.css" integrity="sha384-FNMqEEBpGLe9Ku61+qSXGkOKVoTsW7XFiANWO8v+7jwCFVbTCt2b4KkDXqhEmNpw" crossorigin="anonymous">
+  <style>
+    :root {
+      color-scheme: light;
+      --blue:    #0052cc;
+      --blue-lt: #e6f0ff;
+      --red:     #de350b;
+      --red-lt:  #ffebe6;
+      --green:   #00875a;
+      --green-lt:#e3fcef;
+      --purple:  #4a154b;
+      --gold:    #ff8b00;
+      --gold-lt: #fff7e6;
+      --gray:    #6b778c;
+      --gray-lt: #f4f5f7;
+      --border:  #dfe1e6;
+      --text:    #172b4d;
+      --radius:  10px;
+      --shadow:  0 2px 12px rgba(0,0,0,.08);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #eef0f3; color: var(--text); padding: 18px; min-height: 100vh; }
+
+    /* ── Header ─────────────────────────────────────────── */
+    .header { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
+    .header-left h1 { font-size:19px; font-weight:800; color:var(--blue); display:flex; align-items:center; gap:8px; }
+    .header-left p  { font-size:11px; color:var(--gray); margin-top:3px; }
+    .header-right   { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+
+    /* ── Buttons ────────────────────────────────────────── */
+    .btn { display:inline-flex; align-items:center; gap:6px; padding:8px 15px; border-radius:7px; font-size:13px; font-weight:600; cursor:pointer; border:none; transition:all .15s; white-space:nowrap; }
+    .btn:disabled { opacity:.45; cursor:not-allowed; }
+    .btn-outline  { background:#fff; color:#344563; border:1.5px solid var(--border); }
+    .btn-outline:hover:not(:disabled)  { background:var(--gray-lt); }
+    .btn-slack    { background:var(--purple); color:#fff; }
+    .btn-slack:hover:not(:disabled)    { background:#611f69; }
+    .btn-confirm  { background:var(--green); color:#fff; }
+    .btn-confirm:hover:not(:disabled)  { background:#006644; }
+    .btn-ghost    { background:transparent; color:var(--gray); border:1.5px solid var(--border); }
+    .btn-ghost:hover:not(:disabled)    { background:var(--gray-lt); }
+
+    /* ── Stats ──────────────────────────────────────────── */
+    .stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
+    .stat-card { background:#fff; border-radius:var(--radius); padding:14px 18px; box-shadow:var(--shadow); border-top:4px solid var(--border); }
+    .stat-card.blue  { border-top-color:var(--blue); }
+    .stat-card.red   { border-top-color:var(--red); }
+    .stat-card.gold  { border-top-color:var(--gold); }
+    .stat-card.gray  { border-top-color:#97a0af; }
+    .stat-card .val  { font-size:28px; font-weight:800; line-height:1; }
+    .stat-card.blue .val  { color:var(--blue); }
+    .stat-card.red  .val  { color:var(--red); }
+    .stat-card.gold .val  { color:var(--gold); }
+    .stat-card.gray .val  { color:#344563; }
+    .stat-card .lbl  { font-size:11px; font-weight:600; color:var(--gray); text-transform:uppercase; letter-spacing:.04em; margin-top:4px; }
+
+    /* ── Toolbar ────────────────────────────────────────── */
+    .toolbar { background:#fff; border-radius:var(--radius); box-shadow:var(--shadow); padding:12px 16px; margin-bottom:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+    .toolbar-left  { display:flex; align-items:center; gap:10px; flex:1; }
+    .toolbar-right { display:flex; gap:8px; align-items:center; }
+    .sel-badge { background:var(--blue-lt); color:var(--blue); font-size:12px; font-weight:700; padding:3px 10px; border-radius:20px; }
+    .sel-badge.hidden { display:none; }
+
+    /* ── Table ──────────────────────────────────────────── */
+    .table-card { background:#fff; border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
+    .tbl-wrap   { overflow-x:auto; }
+    table       { width:100%; border-collapse:collapse; font-size:13px; }
+    thead th    { background:var(--gray-lt); color:#5e6c84; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:10px 13px; text-align:left; border-bottom:2px solid var(--border); white-space:nowrap; }
+    thead th.chk-col { width:42px; text-align:center; padding:10px 8px; }
+    tbody tr    { border-bottom:1px solid #f0f1f4; transition:background .1s; }
+    tbody tr:last-child { border-bottom:none; }
+    tbody tr:hover  { background:#f8f9ff; }
+    tbody tr.selected-row { background:#edf4ff; }
+    tbody tr.selected-row:hover { background:#ddeeff; }
+    td          { padding:11px 13px; vertical-align:middle; }
+    td.chk-col  { text-align:center; padding:11px 8px; }
+
+    /* ── Cell styles ────────────────────────────────────── */
+    .badge-clpse    { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:700; background:var(--blue-lt); color:var(--blue); white-space:nowrap; }
+    .badge-onhold   { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700; background:var(--gold-lt); color:var(--gold); margin-left:5px; vertical-align:middle; border:1px solid #ffe0a0; }
+    .row-num        { font-size:11px; font-weight:700; color:#97a0af; min-width:18px; text-align:right; }
+    .badge-overdue{ display:inline-block; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:700; background:var(--red-lt); color:var(--red); margin-left:5px; vertical-align:middle; }
+    .badge-count  { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; font-size:11px; font-weight:800; background:var(--gold-lt); color:var(--gold); border:1.5px solid #ffe0a0; }
+    .badge-count.zero { background:#f4f5f7; color:#b3bac5; border-color:#dfe1e6; }
+    .sent-time  { font-size:11px; color:var(--green); font-weight:600; white-space:nowrap; }
+    .sent-never { font-size:11px; color:#c1c7d0; font-style:italic; }
+    .comment-text { font-size:12px; color:var(--gray); max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .no-comment   { font-size:12px; color:#c1c7d0; font-style:italic; }
+    .proj-name    { font-weight:600; color:var(--text); max-width:200px; }
+
+    /* checkbox style */
+    input[type=checkbox] { width:16px; height:16px; cursor:pointer; accent-color:var(--blue); }
+
+    /* ── Slack panel ────────────────────────────────────── */
+    #slack-panel { display:none; background:#fff; border:2px solid var(--purple); border-radius:var(--radius); padding:18px; margin-bottom:14px; box-shadow:var(--shadow); }
+    .slack-panel-header { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+    .slack-panel-header h3 { font-size:14px; font-weight:700; color:var(--purple); }
+    .channel-pill { background:#f1e8f5; color:var(--purple); font-size:12px; font-weight:600; padding:2px 9px; border-radius:20px; }
+    #message-preview { background:var(--gray-lt); border:1px solid var(--border); border-radius:7px; padding:14px; font-size:13px; line-height:1.65; white-space:pre-wrap; word-break:break-word; font-family:inherit; color:var(--text); max-height:300px; overflow-y:auto; margin-bottom:14px; }
+    .panel-actions { display:flex; gap:10px; }
+
+    /* ── Empty / Error / Loading ────────────────────────── */
+    .state-box { padding:40px 20px; text-align:center; color:var(--gray); font-size:14px; }
+    .state-box .ico { font-size:34px; margin-bottom:10px; }
+    .state-box.error { background:var(--red-lt); color:var(--red); border-radius:var(--radius); padding:20px; }
+
+    /* ── Loading skeleton ───────────────────────────────── */
+    .skeleton { background:linear-gradient(90deg,#f0f1f4 25%,#e4e6eb 50%,#f0f1f4 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:4px; height:14px; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    /* ── Toast ──────────────────────────────────────────── */
+    #toast { position:fixed; bottom:22px; right:22px; padding:11px 18px; border-radius:8px; font-size:13px; font-weight:600; color:#fff; box-shadow:0 6px 20px rgba(0,0,0,.18); opacity:0; transform:translateY(8px); transition:all .25s; pointer-events:none; z-index:999; }
+    #toast.show   { opacity:1; transform:translateY(0); }
+    #toast.ok     { background:var(--green); }
+    #toast.err    { background:var(--red); }
+
+    /* ── Refreshed label ────────────────────────────────── */
+    #refresh-label { font-size:11px; color:#97a0af; margin-left:auto; }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <h1>🚀 Care Launch — CLPSE In Progress Tracker</h1>
+    <p>Live · Smartsheet: (Form Response) Care Launch Requests &nbsp;·&nbsp; #t4i-clpse-carelaunch</p>
+  </div>
+  <div class="header-right">
+    <button class="btn btn-outline" id="refresh-btn">↻ Refresh</button>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-row" id="stats-row">
+  <div class="stat-card blue"><div class="val" id="s-inprogress">–</div><div class="lbl">In Progress</div></div>
+  <div class="stat-card gold"><div class="val" id="s-onhold">–</div><div class="lbl">On Hold</div></div>
+  <div class="stat-card gray"><div class="val" id="s-total">–</div><div class="lbl">Total CLPSE Projects</div></div>
+</div>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <div class="toolbar-left">
+    <input type="checkbox" id="select-all-chk" title="Select / deselect all">
+    <label for="select-all-chk" style="font-size:13px;font-weight:600;cursor:pointer;color:#344563">Select All</label>
+    <span class="sel-badge hidden" id="sel-badge">0 selected</span>
+  </div>
+  <div class="toolbar-right">
+    <span id="refresh-label"></span>
+    <button class="btn btn-slack" id="send-slack-btn" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></svg>
+      Send Update Request <span id="sel-count-label"></span>
+    </button>
+  </div>
+</div>
+
+<!-- Slack preview panel -->
+<div id="slack-panel">
+  <div class="slack-panel-header">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="#4a154b"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52z"/><path d="M6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z"/><path d="M8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834z"/><path d="M8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312z"/><path d="M18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834z"/><path d="M17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312z"/><path d="M15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52z"/><path d="M15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></svg>
+    <h3>Message Preview</h3>
+    <span class="channel-pill">#t4i-clpse-carelaunch</span>
+  </div>
+  <pre id="message-preview"></pre>
+  <div class="panel-actions">
+    <button class="btn btn-confirm" id="confirm-btn">✅ Confirm &amp; Send</button>
+    <button class="btn btn-ghost"   id="cancel-btn">✕ Cancel</button>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="table-card" id="table-card">
+  <div class="state-box"><div class="ico">⏳</div>Loading Care Launch data…</div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────
+  let allRows        = [];
+  let inProgressRows = [];
+  let onHoldRows     = [];
+  let tableRows      = [];  // In Progress + On Hold combined  // subset for table
+  const sentLog     = {};   // { [requestName]: { lastSent: Date|null, count: number } }
+
+  const CLPSE_IDS = {
+    'Michael Arlegui': 'W8FL2SQAE',
+    'Cory Leeson':     'W8FJ0CQSF',
+    'Josh Strong':     'U02KJCLBBSR',
+    'Rodney Webb':     'U032MRPSNTE',
+    'James Badia':     'WT586QETZ',
+    'Konner Vernon':   'U02QNV1DN77',
+    'Archana Pratap':  'W91DGG5ST',
+    'Mo Hamilton':     'WH412TAHH'
+  };
+  const _idCache = { ...CLPSE_IDS };
+
+  // ── Helpers ────────────────────────────────────────────────
+  const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+
+  function fmt(d) {
+    if (!d) return '—';
+    const dt = new Date(d + (d.length === 10 ? 'T00:00:00' : ''));
+    return isNaN(dt) ? d : dt.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+  }
+  function fmtTs(d) {
+    if (!d) return null;
+    return d.toLocaleDateString('en-US', { month:'short', day:'numeric' }) + ' ' +
+           d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+  }
+  function isOverdue(d) {
+    if (!d) return false;
+    const dt = new Date(d + 'T00:00:00');
+    return !isNaN(dt) && dt < TODAY;
+  }
+  function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function toast(msg, type='ok') {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = `show ${type}`;
+    setTimeout(() => t.className = '', 3500);
+  }
+  async function slackMention(name) {
+    if (!name) return 'Unassigned';
+    if (_idCache[name]) return `<@${_idCache[name]}>`;
+    try {
+      const r = await window.cowork.callMcpTool('mcp__5bb57945-e88b-477f-b809-be9c74056e5c__slack_search_users', { query: name, response_format: 'concise' });
+      const text = getRawText(r);
+      const m = text.match(/\b([A-Z][A-Z0-9]{5,})\b/);
+      if (m) { _idCache[name] = m[1]; return `<@${m[1]}>`; }
+    } catch(_) {}
+    return name;
+  }
+
+  // ── Raw response extractor ─────────────────────────────────
+  function getRawText(raw) {
+    if (raw && raw.content && Array.isArray(raw.content))
+      return raw.content.filter(c => c.type === 'text').map(c => c.text || '').join('\n');
+    if (typeof raw === 'string') return raw;
+    if (raw?.result) return String(raw.result);
+    if (raw?.text)   return String(raw.text);
+    try { return JSON.stringify(raw, null, 2); } catch(_) { return String(raw); }
+  }
+
+  // ── Smartsheet text parser ─────────────────────────────────
+  function parseRows(text) {
+    const out = []; let cur = null;
+    for (const line of text.split('\n')) {
+      if (/^\s+-\s+row_id:/.test(line)) {
+        if (cur?.requestName) out.push(cur);
+        cur = { requestName:null, createdDate:null, expectedLaunchDate:null, assignedTo:null, latestComment:null, clpseStatus:null, requestStatus:null };
+        continue;
+      }
+      if (!cur) continue;
+      const ti = line.indexOf('\t');
+      if (ti === -1) continue;
+      const col = line.slice(0, ti).trim();
+      const rest = line.slice(ti + 1);
+      const lt   = rest.lastIndexOf('\t');
+      const val  = (lt > -1 ? rest.slice(0, lt) : rest).trim().replace(/^"/, '').replace(/"$/, '');
+      switch(col) {
+        case 'Request Name':         cur.requestName        = val||null; break;
+        case 'Created Date':         cur.createdDate        = val ? val.substring(0,10) : null; break;
+        case 'Expected Launch Date': cur.expectedLaunchDate = val||null; break;
+        case 'Assigned To (CLPSE)':  cur.assignedTo         = val||null; break;
+        case 'Latest Comment':       cur.latestComment      = val||null; break;
+        case 'CLPSE Project Status': cur.clpseStatus        = val||null; break;
+        case 'Request Status':       cur.requestStatus      = val||null; break;
+      }
+    }
+    if (cur?.requestName) out.push(cur);
+    return out;
+  }
+
+  // ── Load data ──────────────────────────────────────────────
+  async function loadData() {
+    document.getElementById('table-card').innerHTML = `<div class="state-box"><div class="ico">⏳</div>Loading…</div>`;
+    document.getElementById('send-slack-btn').disabled = true;
+    document.getElementById('refresh-label').textContent = '';
+    setStats('–','–','–');
+
+    try {
+      const raw = await window.cowork.callMcpTool(
+        'mcp__aab8ef50-5bd3-4d06-bb8c-e8bbcfccadbc__get_sheet_summary',
+        {
+          sheet_id: 1794904029456260,
+          columns: ['Request Name','Created Date','Expected Launch Date','Assigned To (CLPSE)','Latest Comment','CLPSE Project Status','Request Status']
+        }
+      );
+
+      const text = getRawText(raw);
+      const parsed = parseRows(text);
+
+      // Manager View = Request Status "In Progress" (matches the 18 rows in the dynamic view)
+      allRows        = parsed.filter(p => p.requestStatus === 'In Progress');
+      inProgressRows = allRows.filter(p => p.clpseStatus === 'In Progress');
+      onHoldRows     = allRows.filter(p => p.clpseStatus === 'On Hold');
+      tableRows      = [...inProgressRows, ...onHoldRows];
+
+      setStats(inProgressRows.length, onHoldRows.length, allRows.length);
+
+      if (parsed.length === 0) {
+        document.getElementById('table-card').innerHTML = `<div class="state-box error"><strong>Parser returned 0 rows.</strong><br><code style="font-size:11px;white-space:pre-wrap">${esc(text.slice(0,500))}</code></div>`;
+        return;
+      }
+
+      renderTable();
+      document.getElementById('refresh-label').textContent =
+        'Refreshed ' + new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+
+    } catch(e) {
+      document.getElementById('table-card').innerHTML = `<div class="state-box error">⚠️ ${esc(e.message||String(e))}</div>`;
+    }
+  }
+
+  function setStats(ip, oh, tot) {
+    document.getElementById('s-inprogress').textContent = ip;
+    document.getElementById('s-onhold').textContent     = oh;
+    document.getElementById('s-total').textContent      = tot;
+  }
+
+  // ── Render table ───────────────────────────────────────────
+  function renderTable() {
+    if (!tableRows.length) {
+      document.getElementById('table-card').innerHTML = `<div class="state-box"><div class="ico">🎉</div>No In Progress or On Hold projects right now!</div>`;
+      return;
+    }
+
+    const rows = tableRows.map((p, i) => {
+      const od       = isOverdue(p.expectedLaunchDate);
+      const isOnHold = p.clpseStatus === 'On Hold';
+      const log      = sentLog[p.requestName] || { lastSent: null, count: 0 };
+      const sentHtml = log.lastSent
+        ? `<span class="sent-time">✓ ${fmtTs(log.lastSent)}</span>`
+        : `<span class="sent-never">Not sent yet</span>`;
+      const countHtml = `<span class="badge-count ${log.count === 0 ? 'zero' : ''}">${log.count}</span>`;
+      const statusTag = isOnHold ? `<span class="badge-onhold">ON HOLD</span>` : '';
+      return `
+        <tr data-idx="${i}">
+          <td class="chk-col" style="display:flex;align-items:center;gap:6px;padding:11px 8px">
+            <span class="row-num">${i + 1}</span>
+            <input type="checkbox" class="row-chk" data-idx="${i}">
+          </td>
+          <td><span class="badge-clpse">${esc(p.assignedTo||'—')}</span></td>
+          <td><span class="proj-name" title="${esc(p.requestName)}">${esc(p.requestName)}</span></td>
+          <td style="white-space:nowrap;color:var(--gray)">${fmt(p.createdDate)}</td>
+          <td style="white-space:nowrap">${fmt(p.expectedLaunchDate)}${od ? '<span class="badge-overdue">OVERDUE</span>' : ''}${isOnHold ? statusTag : ''}</td>
+          <td>${sentHtml}</td>
+          <td style="text-align:center">${countHtml}</td>
+          <td>${p.latestComment
+            ? `<span class="comment-text" title="${esc(p.latestComment)}">${esc(p.latestComment)}</span>`
+            : `<span class="no-comment">No comment</span>`}</td>
+        </tr>`;
+    }).join('');
+
+    document.getElementById('table-card').innerHTML = `
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="chk-col" style="width:58px">#</th>
+              <th>CLPSE</th>
+              <th>Request Name</th>
+              <th>Created</th>
+              <th>Expected Launch</th>
+              <th>Last Update Sent</th>
+              <th style="text-align:center">Times Sent</th>
+              <th>Latest Comment</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+
+    // Wire up row checkboxes
+    document.querySelectorAll('.row-chk').forEach(chk => {
+      chk.addEventListener('change', onSelectionChange);
+    });
+    document.getElementById('send-slack-btn').disabled = false;
+    onSelectionChange();
+  }
+
+  // ── Selection helpers ──────────────────────────────────────
+  function getSelected() {
+    return [...document.querySelectorAll('.row-chk:checked')].map(c => tableRows[+c.dataset.idx]);
+  }
+  function onSelectionChange() {
+    const sel    = getSelected();
+    const total  = document.querySelectorAll('.row-chk').length;
+    const badge  = document.getElementById('sel-badge');
+    const countLbl = document.getElementById('sel-count-label');
+    const allChk = document.getElementById('select-all-chk');
+
+    // Highlight selected rows
+    document.querySelectorAll('.row-chk').forEach(c => {
+      c.closest('tr').classList.toggle('selected-row', c.checked);
+    });
+
+    if (sel.length > 0) {
+      badge.textContent = `${sel.length} selected`;
+      badge.classList.remove('hidden');
+      countLbl.textContent = `(${sel.length})`;
+    } else {
+      badge.classList.add('hidden');
+      countLbl.textContent = '';
+    }
+    allChk.indeterminate = sel.length > 0 && sel.length < total;
+    allChk.checked = sel.length === total && total > 0;
+  }
+
+  // Select All
+  document.getElementById('select-all-chk').addEventListener('change', e => {
+    document.querySelectorAll('.row-chk').forEach(c => { c.checked = e.target.checked; });
+    onSelectionChange();
+  });
+
+  // ── Build Slack message ────────────────────────────────────
+  async function buildMessage(selectedProjects) {
+    const dateStr = new Date().toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
+    const names   = [...new Set(selectedProjects.map(p => p.assignedTo).filter(Boolean))];
+    const mentions = await Promise.all(names.map(n => slackMention(n)));
+    const mentionStr = mentions.join(' ');
+
+    const overdue = selectedProjects.filter(p => isOverdue(p.expectedLaunchDate));
+    const overdueNote = overdue.length
+      ? `\n⚠️ *${overdue.length} project(s) past expected launch date* — please flag blockers or provide a revised timeline.\n`
+      : '';
+
+    const lines = await Promise.all(selectedProjects.map(async (p, i) => {
+      const od = isOverdue(p.expectedLaunchDate) ? ' ⚠️ *OVERDUE*' : '';
+      const m  = await slackMention(p.assignedTo);
+      return `${i + 1}. *${p.requestName}*${od}\n  ↳ CLPSE: ${m} | Expected Launch: ${fmt(p.expectedLaunchDate)}`;
+    }));
+
+    return `🔔 *Care Launch — CLPSE Project Update Request* | ${dateStr}
+
+Hey ${mentionStr} 👋 Quick check-in on your active Care Launch project(s). Please take a moment to respond:
+
+📝 *Still in progress?* → Reply in thread with your current status, any blockers, and updated timeline
+📅 *Expected Launch Date out of date?* → Please reach out to your Project POC to get an accurate date and update it in Smartsheet
+✅ *Project complete?* → Make sure your *Scope of Project (SOP)* document is filled out and submitted before closing out${overdueNote}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 *Projects (${selectedProjects.length})*:
+
+${lines.join('\n')}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+👍 Please *ACK this message* by adding a ✅ reaction so I know you've seen it.
+
+Thanks! 🙌
+— G`;
+  }
+
+  // ── Send button ────────────────────────────────────────────
+  document.getElementById('send-slack-btn').addEventListener('click', async () => {
+    const sel = getSelected();
+    if (!sel.length) { toast('Select at least one project first', 'err'); return; }
+
+    const btn = document.getElementById('send-slack-btn');
+    btn.disabled = true;
+    btn.querySelector('span').textContent = '⏳ Building…';
+
+    try {
+      const msg = await buildMessage(sel);
+      document.getElementById('message-preview').textContent = msg;
+      document.getElementById('slack-panel').style.display = 'block';
+      document.getElementById('slack-panel').scrollIntoView({ behavior:'smooth', block:'nearest' });
+    } finally {
+      btn.disabled = false;
+      btn.querySelector('span').textContent = sel.length ? `(${sel.length})` : '';
+    }
+  });
+
+  document.getElementById('cancel-btn').addEventListener('click', () => {
+    document.getElementById('slack-panel').style.display = 'none';
+  });
+
+  document.getElementById('confirm-btn').addEventListener('click', async () => {
+    const sel  = getSelected();
+    const btn  = document.getElementById('confirm-btn');
+    btn.disabled = true; btn.textContent = '⏳ Sending…';
+
+    try {
+      const msg = document.getElementById('message-preview').textContent;
+      await window.cowork.callMcpTool(
+        'mcp__5bb57945-e88b-477f-b809-be9c74056e5c__slack_send_message',
+        { channel_id: 'C05E9TRFC8K', text: msg }
+      );
+
+      // Update sent log
+      const now = new Date();
+      sel.forEach(p => {
+        if (!sentLog[p.requestName]) sentLog[p.requestName] = { lastSent: null, count: 0 };
+        sentLog[p.requestName].lastSent = now;
+        sentLog[p.requestName].count++;
+      });
+
+      document.getElementById('slack-panel').style.display = 'none';
+      // Uncheck all
+      document.querySelectorAll('.row-chk').forEach(c => c.checked = false);
+      document.getElementById('select-all-chk').checked = false;
+      onSelectionChange();
+
+      renderTable(); // re-render to show updated sent times
+      toast(`✅ Sent to ${[...new Set(sel.map(p=>p.assignedTo))].join(', ')}!`, 'ok');
+    } catch(e) {
+      toast('❌ Send failed: ' + (e.message||e), 'err');
+    } finally {
+      btn.disabled = false; btn.textContent = '✅ Confirm & Send';
+    }
+  });
+
+  document.getElementById('refresh-btn').addEventListener('click', loadData);
+
+  // ── Init ───────────────────────────────────────────────────
+  loadData();
+</script>
+</body>
+</html>

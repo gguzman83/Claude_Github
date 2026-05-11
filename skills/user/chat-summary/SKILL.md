@@ -111,7 +111,7 @@ If user wants it logged to their repo:
 - Save as `summaries/YYYY-MM-DD.md` in `Claude_Github`
 - Provide the terminal push command:
 ```bash
-cd /Users/gguzman/Desktop/Claude_Desktop_MTV
+cd /Users/gguzman/Documents/Claude/Claude_Desktop_MTV
 git add summaries/
 git commit -m "Add chat summary [date]"
 git push

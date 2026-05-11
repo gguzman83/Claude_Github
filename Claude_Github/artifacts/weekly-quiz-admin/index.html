@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Weekly Quiz Admin",
+  "schemaVersion": 1,
+  "description": "Weekly Quiz Admin — Question Bank management with integrated publish, quiz analysis. Admin-gated via Smartsheet leaderboard.",
+  "mcpTools": [
+    "mcp__aab8ef50-5bd3-4d06-bb8c-e8bbcfccadbc__get_sheet_summary",
+    "mcp__aab8ef50-5bd3-4d06-bb8c-e8bbcfccadbc__update_rows",
+    "mcp__aab8ef50-5bd3-4d06-bb8c-e8bbcfccadbc__add_rows"
+  ],
+  "mcpServerNames": [
+    "Smartsheet",
+    "Smartsheet",
+    "Smartsheet"
+  ]
+}
+</script>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Weekly Quiz Admin</title>
+<style>
+:root{--bg:#0a0a0f;--surface:#13131a;--card:#1a1a24;--border:#2a2a3a;--accent:#6c63ff;--text:#e8e8f0;--muted:#7070a0;--success:#43e97b;--error:#ff6b6b;--warn:#f7971e;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.shell{display:flex;min-height:100vh;}
+.sidebar{width:200px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:24px 0;position:fixed;top:0;left:0;bottom:0;overflow-y:auto;}
+.logo{padding:0 18px 20px;border-bottom:1px solid var(--border);font-weight:800;font-size:14px;letter-spacing:.5px;}
+.logo span{color:var(--accent);}
+.nav{display:flex;flex-direction:column;gap:2px;padding:14px 10px;flex:1;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);transition:all .15s;border:none;background:none;width:100%;text-align:left;}
+.nav-item:hover{background:var(--card);color:var(--text);}
+.nav-item.active{background:rgba(108,99,255,.15);color:var(--accent);}
+.sidebar-footer{padding:14px 18px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);}
+.main{margin-left:200px;flex:1;padding:28px;}
+.page{display:none;}.page.active{display:block;}
+.section-title{font-weight:800;font-size:20px;margin-bottom:20px;display:flex;align-items:center;gap:10px;}
+.pill{font-size:11px;padding:3px 10px;border-radius:99px;background:rgba(108,99,255,.2);color:var(--accent);font-family:monospace;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;}
+.btn{padding:9px 18px;border-radius:8px;border:none;cursor:pointer;font-weight:500;font-size:13px;transition:all .15s;}
+.btn-primary{background:var(--accent);color:#fff;}.btn-primary:hover{background:#5a52e0;}
+.btn-secondary{background:var(--border);color:var(--text);}.btn-secondary:hover{background:#3a3a50;}
+.btn-danger{background:rgba(255,107,107,.15);color:var(--error);border:1px solid rgba(255,107,107,.3);}
+.btn-success{background:rgba(67,233,123,.15);color:var(--success);border:1px solid rgba(67,233,123,.3);}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+input,select,textarea{background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:9px 12px;width:100%;outline:none;transition:border-color .15s;}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+textarea{resize:vertical;min-height:60px;}
+label{font-size:12px;color:var(--muted);margin-bottom:4px;display:block;font-weight:500;}
+.fg{margin-bottom:14px;}
+.flash{position:fixed;top:20px;right:20px;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;z-index:9999;max-width:320px;animation:fi .2s ease;}
+@keyframes fi{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:none;}}
+.flash-s{background:rgba(67,233,123,.15);color:var(--success);border:1px solid rgba(67,233,123,.3);}
+.flash-e{background:rgba(255,107,107,.15);color:var(--error);border:1px solid rgba(255,107,107,.3);}
+.flash-i{background:rgba(108,99,255,.15);color:var(--accent);border:1px solid rgba(108,99,255,.3);}
+.pub-bar{background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.3);border-radius:12px;padding:14px 18px;margin-bottom:18px;}
+.pub-bar-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.pub-bar-sub{font-size:12px;color:var(--muted);margin-top:8px;}
+.bank-card{background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden;transition:border-color .15s,box-shadow .15s;}
+.bank-card.will-publish{border-color:var(--accent);box-shadow:0 0 0 1px rgba(108,99,255,.25);}
+.bank-card.will-publish .bank-hdr{background:rgba(108,99,255,.06);}
+.bank-hdr{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;user-select:none;}
+.bank-body{display:none;border-top:1px solid var(--border);padding:14px;font-size:13px;}
+.tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:11px;font-family:monospace;}
+.tag-unused{background:rgba(112,112,160,.15);color:var(--muted);}
+.tag-queued{background:rgba(247,151,30,.15);color:var(--warn);}
+.tag-archived{background:rgba(67,233,123,.1);color:#6ab88a;}
+.tag-pending{background:rgba(255,107,107,.15);color:var(--error);}
+.empty{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty .big{font-size:48px;margin-bottom:12px;}
+.empty h3{font-size:18px;color:var(--text);margin-bottom:8px;}
+table{width:100%;border-collapse:collapse;}
+th,td{padding:10px 14px;text-align:left;font-size:13px;border-bottom:1px solid var(--border);}
+th{font-family:monospace;font-size:11px;color:var(--muted);background:var(--surface);}
+tr:last-child td{border-bottom:none;}
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;}
+.stat-val{font-weight:800;font-size:26px;color:var(--accent);}
+.stat-lbl{font-size:11px;color:var(--muted);margin-top:4px;font-family:monospace;}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center;}
+.modal-box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:28px;width:580px;max-width:95vw;max-height:90vh;overflow-y:auto;}
+.sec-label{font-family:monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin:16px 0 8px;padding-left:4px;}
+.q-preview-row{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;}
+.replicate-hint{font-size:12px;color:var(--warn);background:rgba(247,151,30,.07);border:1px solid rgba(247,151,30,.25);border-radius:8px;padding:10px 13px;margin-bottom:16px;}
+</style>
+</head>
+<body>
+<div class="shell">
+<nav class="sidebar">
+  <div class="logo">Weekly Quiz <span>ADMIN</span></div>
+  <div class="nav" id="nav-panel" style="display:none;">
+    <button class="nav-item active" onclick="showPage('bank')" id="nav-bank">📚 Question Bank</button>
+    <button class="nav-item" onclick="showPage('analysis')" id="nav-analysis">📊 Analysis</button>
+  </div>
+  <div class="sidebar-footer">
+    <div id="wk-lbl" style="margin-bottom:6px;font-family:monospace;"></div>
+    <button id="logout-btn" onclick="doLogout()" style="display:none;width:100%;background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.25);color:var(--error);border-radius:8px;padding:6px;font-size:11px;cursor:pointer;">← Log Out</button>
+  </div>
+</nav>
+<main class="main">
+  <div class="page active" id="page-login">
+    <div style="max-width:400px;margin:80px auto;">
+      <div class="section-title">🔐 Admin Login</div>
+      <div class="card">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">Enter your name to verify admin access.</p>
+        <div class="fg"><label>Your Name</label><input id="admin-name" placeholder="Enter your name" onkeydown="if(event.key==='Enter')doLogin()"></div>
+        <button class="btn btn-primary" id="login-btn" onclick="doLogin()" style="width:100%">Verify Access</button>
+      </div>
+    </div>
+  </div>
+  <div class="page" id="page-bank">
+    <div class="section-title">📚 Question Bank
+      <button class="btn btn-secondary btn-sm" onclick="refreshData()">↻ Refresh</button>
+    </div>
+    <div id="publish-bar" style="display:none;" class="pub-bar"></div>
+    <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
+      <input type="text" id="bank-search" placeholder="Search…" oninput="renderBank()" style="max-width:220px;">
+      <select id="bank-filter" onchange="renderBank()" style="max-width:160px;">
+        <option value="">All Statuses</option>
+        <option value="unused">Unused</option>
+        <option value="queued">Queued</option>
+        <option value="archived">Archived</option>
+        <option value="pending review">Pending Review</option>
+      </select>
+      <div id="bank-status-counts" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+    </div>
+    <div id="bank-list"></div>
+  </div>
+  <div class="page" id="page-analysis">
+    <div class="section-title">📊 Analysis <span class="pill" id="analysis-pill">—</span></div>
+    <div id="analysis-week-tabs" style="display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap;"></div>
+    <div id="analysis-content"><div class="empty"><div class="big">⏳</div><h3>Loading…</h3></div></div>
+  </div>
+</main>
+</div>
+
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <span style="font-weight:700;font-size:16px;"><span id="edit-modal-verb">Edit</span> <span id="edit-qid-label" style="color:var(--accent);font-family:monospace;font-size:13px;"></span></span>
+      <button onclick="closeModal()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div id="replicate-hint" class="replicate-hint" style="display:none;">✏️ Rephrase the question and/or answers to create a fresh variation, then click <strong>Save as New Question</strong>. The archived original will not be changed.</div>
+    <div class="fg"><label>Question</label><textarea id="edit-q" rows="3"></textarea></div>
+    <div class="fg"><label>Correct Answer ✓</label><input id="edit-cor"></div>
+    <div class="fg"><label>Wrong Answer 1</label><input id="edit-w1"></div>
+    <div class="fg"><label>Wrong Answer 2</label><input id="edit-w2"></div>
+    <div class="fg"><label>Wrong Answer 3</label><input id="edit-w3"></div>
+    <div class="fg"><label>Explanation</label><textarea id="edit-exp" rows="2"></textarea></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="edit-save-btn" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="pub-modal">
+  <div class="modal-box" style="max-width:520px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <span style="font-weight:700;font-size:16px;">🚀 Publish Quiz</span>
+      <button onclick="closePubModal()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <p id="pub-modal-sub" style="font-size:13px;color:var(--muted);margin-bottom:18px;"></p>
+    <div id="pub-modal-list"></div>
+    <p style="font-size:12px;color:var(--muted);margin-top:14px;">After publishing, these questions will be marked <em>archived</em> and removed from the queue.</p>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+      <button class="btn btn-secondary" onclick="closePubModal()">Cancel</button>
+      <button class="btn btn-primary" id="pub-confirm-btn" onclick="doPublish()">Confirm &amp; Publish</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SS='mcp__aab8ef50-5bd3-4d06-bb8c-e8bbcfccadbc__';
+const QBANK=819519384670084,PQS=7012673246941060,LBR=7204108529258372;
+const COL_QB={qid:1745152172658564,q:6248751800029060,cor:3996951986343812,w1:8500551613714308,w2:337777289105284,w3:4841376916475780,exp:7093176730161028,status:1463677195947908,qpos:5967276823318404,usedIn:3715477009633156,by:5749841016950660};
+const COL_PQ={week:8075798675492740,q1:757449281015684,q2:5261048908386180,q3:3009249094700932,q4:7512848722071428,q5:1883349187858308,status:6386948815228804,pubAt:4135149001543556};
+const COL_LB_RANK=7485668424191876;
+let _qbRows=[],_pqRows=[],_lbRows=[],currentAdmin=null,_editRowId=null,_replicateSourceId=null,_loadP=null,_pubCount=null;
+
+function weekKey(d=new Date()){const u=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const dow=u.getUTCDay()||7;u.setUTCDate(u.getUTCDate()-dow+1);const y=u.getUTCFullYear();const j4=new Date(Date.UTC(y,0,4));const wn=Math.ceil(((u-j4)/864e5+j4.getUTCDay()+1)/7);return`${y}-W${String(wn).padStart(2,'0')}`;}
+const W=weekKey();
+function nextWeekKey(){const d=new Date();const u=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const dow=u.getUTCDay()||7;u.setUTCDate(u.getUTCDate()-dow+1+7);return weekKey(u);}
+function computeTargetWeek(){if(!_pqRows.some(r=>r.c['Week']===W))return W;const NW=nextWeekKey();if(_pqRows.some(r=>r.c['Week']===NW))return null;return NW;}
+
+function normPct(v){const s=String(v||'').replace(/%/g,'').replace(/"/g,'').trim();const n=parseFloat(s)||0;return n>0&&n<=1?Math.round(n*100):Math.round(n);}
+
+function waitForCowork(){
+  return new Promise(resolve=>{
+    if(window.cowork)return resolve();
+    const iv=setInterval(()=>{if(window.cowork){clearInterval(iv);resolve();}},50);
+  });
+}
+
+async function ss(tool,args){
+  await waitForCowork();
+  if(tool==='update_rows'&&args?.rows){args={...args,rows:args.rows.map(r=>'row_id' in r?{id:r.row_id,cells:r.cells}:r)};}
+  const r=await window.cowork.callMcpTool(SS+tool,args);
+  if(r.isError)throw new Error((r.content?.[0]?.text)||'Smartsheet error');
+  const raw=r.content[0].text||'';try{const p=JSON.parse(raw);return p.result||raw;}catch(e){return raw;}
+}
+
+function parseRows(text){const rows=[];let cur=null;for(const line of text.split('\n')){const rm=line.match(/^ {2}- row_id: +(\d+)/);if(rm){if(cur)rows.push(cur);cur={id:+rm[1],c:{}};continue;}if(cur){const cm=line.match(/^ {6}(.+?)\t(.*)\t\S+$/);if(cm){let v=cm[2];if(v.length>1&&v.startsWith('"')&&v.endsWith('"'))v=v.slice(1,-1);cur.c[cm[1]]=v;}}}if(cur)rows.push(cur);return rows;}
+
+function flash(msg,t='i'){const el=document.createElement('div');el.className=`flash flash-${t}`;el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),t==='e'?7000:3500);}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function showPage(name){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));document.getElementById('page-'+name)?.classList.add('active');document.getElementById('nav-'+name)?.classList.add('active');if(name==='bank')renderBank();if(name==='analysis')renderAnalysis();}
+
+async function doLogin(){
+  const n=document.getElementById('admin-name').value.trim();
+  if(!n){flash('Enter your name','e');return;}
+  const btn=document.getElementById('login-btn');
+  btn.disabled=true;btn.textContent='Verifying…';
+  try{
+    const text=await ss('get_sheet_summary',{sheet_id:LBR});
+    const rows=parseRows(text);
+    const isAdmin=rows.some(r=>r.c['Tech Name']===n&&(r.c['Admin']==='True'||r.c['Admin']==='true'||r.c['Admin']===true));
+    if(!isAdmin){flash('Access denied','e');btn.disabled=false;btn.textContent='Verify Access';return;}
+    currentAdmin=n;
+    document.getElementById('nav-panel').style.cssText='display:flex;flex-direction:column;';
+    document.getElementById('logout-btn').style.display='block';
+    flash(`Welcome, ${n}!`,'s');
+    loadAll().then(()=>showPage('bank')).catch(e=>flash('Load error: '+e.message,'e'));
+  }catch(e){flash('Verification failed: '+e.message,'e');btn.disabled=false;btn.textContent='Verify Access';}
+}
+function doLogout(){currentAdmin=null;_loadP=null;_pubCount=null;document.getElementById('nav-panel').style.display='none';document.getElementById('logout-btn').style.display='none';document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-login').classList.add('active');document.getElementById('login-btn').disabled=false;document.getElementById('login-btn').textContent='Verify Access';}
+
+function loadAll(force=false){
+  if(_loadP&&!force)return _loadP;
+  _loadP=(async()=>{
+    const [qbText,pqText,lbText]=await Promise.all([ss('get_sheet_summary',{sheet_id:QBANK}),ss('get_sheet_summary',{sheet_id:PQS}),ss('get_sheet_summary',{sheet_id:LBR})]);
+    _qbRows=parseRows(qbText);_pqRows=parseRows(pqText);
+    const rawLb=parseRows(lbText).filter(r=>r.c['Entry ID']!=='ADMIN'&&r.c['Tech Name']);
+    const lbMap=new Map();
+    for(const r of rawLb){const k=`${r.c['Week']}|${r.c['Tech Name']}`;const ex=lbMap.get(k);if(!ex||(+r.c['Questions Correct']||0)>(+ex.c['Questions Correct']||0))lbMap.set(k,r);}
+    _lbRows=[...lbMap.values()];
+  })();
+  return _loadP;
+}
+async function refreshData(){_loadP=null;_pubCount=null;document.getElementById('bank-list').innerHTML='<div class="empty"><div class="big">⏳</div><h3>Refreshing…</h3></div>';try{await loadAll();renderCurrentPage();}catch(e){flash('Refresh failed: '+e.message,'e');}}
+function renderCurrentPage(){const p=document.querySelector('.page.active');if(!p)return;const id=p.id.replace('page-','');if(id==='bank')renderBank();if(id==='analysis')renderAnalysis();}
+
+const STATUS_ORDER={queued:0,unused:1,'pending review':2,archived:3};
+const STATUS_BORDER={unused:'rgba(112,112,160,.25)',queued:'rgba(247,151,30,.3)','pending review':'rgba(255,107,107,.3)',archived:'rgba(67,233,123,.2)'};
+const STATUS_BG={unused:'rgba(112,112,160,.04)',queued:'rgba(247,151,30,.04)','pending review':'rgba(255,107,107,.04)',archived:'rgba(67,233,123,.03)'};
+const STATUS_COLOR={unused:'var(--muted)',queued:'var(--warn)','pending review':'var(--error)',archived:'#6ab88a'};
+const STATUS_BG2={unused:'rgba(112,112,160,.15)',queued:'rgba(247,151,30,.15)','pending review':'rgba(255,107,107,.15)',archived:'rgba(67,233,123,.1)'};
+
+function renderBank(){
+  if(!currentAdmin)return;
+  const listEl=document.getElementById('bank-list'),pbEl=document.getElementById('publish-bar'),countsEl=document.getElementById('bank-status-counts');
+  const search=(document.getElementById('bank-search')?.value||'').toLowerCase(),filter=document.getElementById('bank-filter')?.value||'';
+  countsEl.innerHTML=['unused','queued','pending review','archived'].map(s=>{const n=_qbRows.filter(r=>r.c['Status']===s).length;if(!n)return'';return`<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;background:${STATUS_BG2[s]};border:1px solid ${STATUS_COLOR[s]}33;cursor:pointer;font-size:11px;" onclick="document.getElementById('bank-filter').value='${s}';renderBank();"><strong style="color:${STATUS_COLOR[s]}">${n}</strong><span style="color:${STATUS_COLOR[s]}">${s}</span></span>`;}).join('');
+  const allQueued=_qbRows.filter(r=>r.c['Status']==='queued').sort((a,b)=>(+a.c['Queue Position']||99)-(+b.c['Queue Position']||99));
+  const queuedCount=allQueued.length,targetWeek=computeTargetWeek();
+  let willPublishIds=new Set();
+  if(queuedCount>=3&&targetWeek){
+    const maxQ=Math.min(5,queuedCount);if(_pubCount===null||_pubCount>maxQ)_pubCount=maxQ;if(_pubCount<3)_pubCount=3;
+    const opts=[3,4,5].filter(n=>n<=maxQ).map(n=>`<option value="${n}"${n===_pubCount?' selected':''}>${n} questions</option>`).join('');
+    const isNext=targetWeek!==W;
+    pbEl.style.display='block';
+    pbEl.innerHTML=`<div class="pub-bar-row"><span style="font-size:14px;font-weight:700;flex:1;">🚀 Publish Quiz <span style="font-family:monospace;color:var(--accent);font-size:13px;margin-left:6px;">${targetWeek}</span>${isNext?'<span style="font-size:11px;color:var(--muted);margin-left:6px;">(next week)</span>':''}</span><select onchange="_pubCount=+this.value;renderBank();" style="width:140px;padding:7px 10px;font-size:13px;">${opts}</select><button class="btn btn-primary btn-sm" onclick="openPublishConfirm()" style="white-space:nowrap;">Publish Quiz →</button></div><div class="pub-bar-sub">Top <strong style="color:var(--text);">${_pubCount}</strong> queued questions (highlighted below) will be pushed to the quiz.${isNext?' Rankings for '+W+' will be written to Smartsheet automatically.':''}</div>`;
+    allQueued.slice(0,_pubCount).forEach(r=>willPublishIds.add(r.id));
+  }else if(queuedCount>=3&&!targetWeek){pbEl.style.display='block';pbEl.innerHTML=`<div class="pub-bar-row"><span style="font-size:13px;color:var(--muted);">⚠️ Quizzes already exist for both this week and next week. No publish slot available.</span></div>`;}
+  else{pbEl.style.display='none';}
+  let rows=[..._qbRows];
+  if(search)rows=rows.filter(r=>(r.c['Question']||'').toLowerCase().includes(search)||(r.c['Question ID']||'').toLowerCase().includes(search));
+  if(filter)rows=rows.filter(r=>r.c['Status']===filter);
+  rows.sort((a,b)=>{const so=(STATUS_ORDER[a.c['Status']]??4)-(STATUS_ORDER[b.c['Status']]??4);if(so)return so;if(a.c['Status']==='queued')return(+a.c['Queue Position']||99)-(+b.c['Queue Position']||99);return(a.c['Question ID']||'').localeCompare(b.c['Question ID']||'');});
+  if(!rows.length){listEl.innerHTML='<div class="empty"><div class="big">🔍</div><h3>No matching questions</h3></div>';return;}
+  if(!filter&&!search){const groups=[{label:'Queued',st:'queued'},{label:'Unused',st:'unused'},{label:'Pending Review',st:'pending review'},{label:'Archived',st:'archived'}].filter(g=>rows.some(r=>r.c['Status']===g.st));listEl.innerHTML=groups.map(g=>{const gRows=rows.filter(r=>r.c['Status']===g.st);return`<div class="sec-label">${g.label} (${gRows.length})</div>`+gRows.map(r=>renderBankCard(r,queuedCount,willPublishIds)).join('');}).join('');}
+  else{listEl.innerHTML=rows.map(r=>renderBankCard(r,queuedCount,willPublishIds)).join('');}
+}
+
+function renderBankCard(r,queuedCount,willPublishIds=new Set()){
+  const st=r.c['Status']||'unused',willPublish=willPublishIds.has(r.id),borderC=willPublish?'var(--accent)':(STATUS_BORDER[st]||'var(--border)'),bgC=STATUS_BG[st]||'',qid=esc(r.c['Question ID']||'?');
+  let actions='';
+  if(st==='unused'){actions=`<button class="btn btn-secondary btn-sm" onclick="openEdit(${r.id},event)">✏️ Edit</button><button class="btn btn-sm" style="background:rgba(247,151,30,.15);color:var(--warn);border:1px solid rgba(247,151,30,.3);" onclick="queueQ(${r.id},event)">➕ Queue</button>`;}
+  else if(st==='queued'){const pos=+r.c['Queue Position']||1;actions=`<button class="btn btn-secondary btn-sm" ${pos<=1?'disabled':''} onclick="moveQ(${r.id},-1,event)">▲</button><button class="btn btn-secondary btn-sm" ${pos>=queuedCount?'disabled':''} onclick="moveQ(${r.id},1,event)">▼</button><button class="btn btn-secondary btn-sm" onclick="unqueueQ(${r.id},event)">↩ Unused</button>`;}
+  else if(st==='pending review'){actions=`<button class="btn btn-success btn-sm" onclick="approveQ(${r.id},event)">✓ Approve</button><button class="btn btn-danger btn-sm" onclick="rejectQ(${r.id},event)">✕ Reject</button>`;}
+  else if(st==='archived'){actions=`<button class="btn btn-sm" style="background:rgba(108,99,255,.12);color:var(--accent);border:1px solid rgba(108,99,255,.3);" onclick="replicateQ(${r.id},event)">⧉ Replicate</button>`;}
+  let posBadge='';
+  if(st==='queued'){posBadge=willPublish?`<span style="font-family:monospace;font-size:10px;color:var(--accent);background:rgba(108,99,255,.18);padding:2px 7px;border-radius:99px;border:1px solid rgba(108,99,255,.3);">📤 #${r.c['Queue Position']}</span>`:`<span style="font-family:monospace;font-size:10px;color:var(--muted);background:var(--border);padding:2px 7px;border-radius:99px;">#${r.c['Queue Position']}</span>`;}
+  return`<div class="bank-card${willPublish?' will-publish':''}" style="border-color:${borderC};"><div class="bank-hdr" onclick="toggleCard(${r.id})"><span style="font-family:monospace;font-size:11px;color:var(--accent);width:36px;flex-shrink:0;">${qid}</span><span style="flex:1;font-size:13px;font-weight:500;">${esc(r.c['Question']||'')}</span>${posBadge}<span class="tag tag-${st==='pending review'?'pending':st}">${st}</span><span id="chev-${r.id}" style="color:var(--muted);font-size:11px;flex-shrink:0;margin-left:4px;">▼</span></div><div class="bank-body" id="body-${r.id}" style="background:${bgC};border-color:${borderC};"><div style="display:grid;gap:8px;margin-bottom:14px;"><div style="display:flex;gap:10px;"><span style="color:var(--success);font-weight:600;width:18px;flex-shrink:0;">✓</span><span>${esc(r.c['Correct Answer']||'')}</span></div>${['Wrong Answer 1','Wrong Answer 2','Wrong Answer 3'].filter(k=>r.c[k]).map(k=>`<div style="display:flex;gap:10px;"><span style="color:var(--error);width:18px;flex-shrink:0;">✗</span><span style="color:#b0b0c8;">${esc(r.c[k])}</span></div>`).join('')}${r.c['Explanation']?`<div style="margin-top:6px;padding:10px;background:rgba(108,99,255,.08);border-radius:8px;border:1px solid rgba(108,99,255,.15);font-size:12px;color:#b0b0d0;">📖 ${esc(r.c['Explanation'])}</div>`:''}${r.c['Submitted By']?`<div style="font-size:11px;color:var(--muted);margin-top:4px;">Submitted by: ${esc(r.c['Submitted By'])}</div>`:''}</div><div style="display:flex;gap:8px;flex-wrap:wrap;">${actions}</div></div></div>`;
+}
+function toggleCard(id){const b=document.getElementById(`body-${id}`),c=document.getElementById(`chev-${id}`);if(!b)return;const open=b.style.display!=='none';b.style.display=open?'none':'block';if(c)c.textContent=open?'▼':'▲';}
+
+function openEdit(rowId,e){
+  if(e)e.stopPropagation();
+  const r=_qbRows.find(x=>x.id===rowId);if(!r)return;
+  _editRowId=rowId;_replicateSourceId=null;
+  document.getElementById('edit-modal-verb').textContent='Edit';
+  document.getElementById('edit-qid-label').textContent=r.c['Question ID']||'';
+  document.getElementById('replicate-hint').style.display='none';
+  document.getElementById('edit-save-btn').textContent='Save Changes';
+  document.getElementById('edit-q').value=r.c['Question']||'';
+  document.getElementById('edit-cor').value=r.c['Correct Answer']||'';
+  document.getElementById('edit-w1').value=r.c['Wrong Answer 1']||'';
+  document.getElementById('edit-w2').value=r.c['Wrong Answer 2']||'';
+  document.getElementById('edit-w3').value=r.c['Wrong Answer 3']||'';
+  document.getElementById('edit-exp').value=r.c['Explanation']||'';
+  document.getElementById('edit-modal').style.display='flex';
+}
+
+function replicateQ(rowId,e){
+  if(e)e.stopPropagation();
+  const r=_qbRows.find(x=>x.id===rowId);if(!r)return;
+  _replicateSourceId=rowId;_editRowId=null;
+  document.getElementById('edit-modal-verb').textContent='Replicate';
+  document.getElementById('edit-qid-label').textContent='(copy of '+(r.c['Question ID']||'')+')';
+  document.getElementById('replicate-hint').style.display='block';
+  document.getElementById('edit-save-btn').textContent='Save as New Question';
+  document.getElementById('edit-q').value=r.c['Question']||'';
+  document.getElementById('edit-cor').value=r.c['Correct Answer']||'';
+  document.getElementById('edit-w1').value=r.c['Wrong Answer 1']||'';
+  document.getElementById('edit-w2').value=r.c['Wrong Answer 2']||'';
+  document.getElementById('edit-w3').value=r.c['Wrong Answer 3']||'';
+  document.getElementById('edit-exp').value=r.c['Explanation']||'';
+  document.getElementById('edit-modal').style.display='flex';
+}
+
+function closeModal(){
+  document.getElementById('edit-modal').style.display='none';
+  _editRowId=null;_replicateSourceId=null;
+  document.getElementById('edit-modal-verb').textContent='Edit';
+  document.getElementById('replicate-hint').style.display='none';
+  document.getElementById('edit-save-btn').textContent='Save Changes';
+}
+
+async function saveEdit(){
+  const vals={
+    q:document.getElementById('edit-q').value.trim(),
+    cor:document.getElementById('edit-cor').value.trim(),
+    w1:document.getElementById('edit-w1').value.trim(),
+    w2:document.getElementById('edit-w2').value.trim(),
+    w3:document.getElementById('edit-w3').value.trim(),
+    exp:document.getElementById('edit-exp').value.trim()
+  };
+  if(_replicateSourceId!==null){
+    const max=_qbRows.reduce((m,r)=>{const n=parseInt((r.c['Question ID']||'').replace(/\D/g,''));return isNaN(n)?m:Math.max(m,n);},0);
+    const newId=`Q${String(max+1).padStart(2,'0')}`;
+    const btn=document.getElementById('edit-save-btn');
+    btn.disabled=true;btn.textContent='Saving…';
+    try{
+      await ss('add_rows',{sheet_id:QBANK,rows:[{cells:[
+        {columnId:COL_QB.qid,value:newId},{columnId:COL_QB.q,value:vals.q},
+        {columnId:COL_QB.cor,value:vals.cor},{columnId:COL_QB.w1,value:vals.w1},
+        {columnId:COL_QB.w2,value:vals.w2},{columnId:COL_QB.w3,value:vals.w3},
+        {columnId:COL_QB.exp,value:vals.exp},{columnId:COL_QB.status,value:'unused'}
+      ],toBottom:true}]});
+      _qbRows.push({id:0,c:{'Question ID':newId,'Question':vals.q,'Correct Answer':vals.cor,'Wrong Answer 1':vals.w1,'Wrong Answer 2':vals.w2,'Wrong Answer 3':vals.w3,'Explanation':vals.exp,'Status':'unused'}});
+      closeModal();flash(`${newId} created as new unused question ✓`,'s');renderBank();
+    }catch(err){flash('Replicate failed: '+err.message,'e');}
+    finally{btn.disabled=false;btn.textContent='Save as New Question';}
+    return;
+  }
+  if(!_editRowId)return;
+  const r=_qbRows.find(x=>x.id===_editRowId);if(!r)return;
+  try{
+    await ss('update_rows',{sheet_id:QBANK,rows:[{row_id:_editRowId,cells:[
+      {columnId:COL_QB.q,value:vals.q},{columnId:COL_QB.cor,value:vals.cor},
+      {columnId:COL_QB.w1,value:vals.w1},{columnId:COL_QB.w2,value:vals.w2},
+      {columnId:COL_QB.w3,value:vals.w3},{columnId:COL_QB.exp,value:vals.exp}
+    ]}]});
+    r.c['Question']=vals.q;r.c['Correct Answer']=vals.cor;r.c['Wrong Answer 1']=vals.w1;r.c['Wrong Answer 2']=vals.w2;r.c['Wrong Answer 3']=vals.w3;r.c['Explanation']=vals.exp;
+    closeModal();flash(`${r.c['Question ID']} saved ✓`,'s');renderBank();
+  }catch(err){flash('Save failed: '+err.message,'e');}
+}
+
+async function queueQ(rowId,e){if(e)e.stopPropagation();const r=_qbRows.find(x=>x.id===rowId);if(!r)return;const nextPos=_qbRows.filter(x=>x.c['Status']==='queued').length+1;try{await ss('update_rows',{sheet_id:QBANK,rows:[{row_id:rowId,cells:[{columnId:COL_QB.status,value:'queued'},{columnId:COL_QB.qpos,value:String(nextPos)}]}]});r.c['Status']='queued';r.c['Queue Position']=String(nextPos);flash(`${r.c['Question ID']} queued at #${nextPos}`,'s');renderBank();}catch(err){flash('Failed to queue: '+err.message,'e');}}
+async function unqueueQ(rowId,e){if(e)e.stopPropagation();const r=_qbRows.find(x=>x.id===rowId);if(!r)return;try{await ss('update_rows',{sheet_id:QBANK,rows:[{row_id:rowId,cells:[{columnId:COL_QB.status,value:'unused'},{columnId:COL_QB.qpos,value:''}]}]});r.c['Status']='unused';r.c['Queue Position']='';await renumberQueue();flash(`${r.c['Question ID']} → Unused`,'i');renderBank();}catch(err){flash('Failed: '+err.message,'e');}}
+async function moveQ(rowId,dir,e){if(e)e.stopPropagation();const queued=_qbRows.filter(r=>r.c['Status']==='queued').sort((a,b)=>(+a.c['Queue Position']||99)-(+b.c['Queue Position']||99));const idx=queued.findIndex(r=>r.id===rowId);if(idx<0)return;const si=idx+dir;if(si<0||si>=queued.length)return;const posA=queued[idx].c['Queue Position'],posB=queued[si].c['Queue Position'];try{await ss('update_rows',{sheet_id:QBANK,rows:[{row_id:queued[idx].id,cells:[{columnId:COL_QB.qpos,value:posB}]},{row_id:queued[si].id,cells:[{columnId:COL_QB.qpos,value:posA}]}]});queued[idx].c['Queue Position']=posB;queued[si].c['Queue Position']=posA;renderBank();}catch(err){flash('Failed to reorder: '+err.message,'e');}}
+async function renumberQueue(){const queued=_qbRows.filter(r=>r.c['Status']==='queued').sort((a,b)=>(+a.c['Queue Position']||99)-(+b.c['Queue Position']||99));if(!queued.length)return;const rows=queued.map((r,i)=>({row_id:r.id,cells:[{columnId:COL_QB.qpos,value:String(i+1)}]}));await ss('update_rows',{sheet_id:QBANK,rows});queued.forEach((r,i)=>r.c['Queue Position']=String(i+1));}
+async function approveQ(rowId,e){if(e)e.stopPropagation();const r=_qbRows.find(x=>x.id===rowId);if(!r)return;try{await ss('update_rows',{sheet_id:QBANK,rows:[{row_id:rowId,cells:[{columnId:COL_QB.status,value:'unused'}]}]});r.c['Status']='unused';flash(`${r.c['Question ID']} approved → Unused`,'s');renderBank();}catch(err){flash('Failed: '+err.message,'e');}}
+async function rejectQ(rowId,e){if(e)e.stopPropagation();const r=_qbRows.find(x=>x.id===rowId);if(!r||!confirm(`Archive "${r.c['Question ID']}"?`))return;try{await ss('update_rows',{sheet_id:QBANK,rows:[{row_id:rowId,cells:[{columnId:COL_QB.status,value:'archived'}]}]});r.c['Status']='archived';flash(`${r.c['Question ID']} archived`,'i');renderBank();}catch(err){flash('Failed: '+err.message,'e');}}
+
+function openPublishConfirm(){const queued=_qbRows.filter(r=>r.c['Status']==='queued').sort((a,b)=>(+a.c['Queue Position']||99)-(+b.c['Queue Position']||99));const selected=queued.slice(0,_pubCount);const targetWeek=computeTargetWeek();if(!targetWeek){flash('No publish slot available','e');return;}if(selected.length<3){flash('Need at least 3 queued questions','e');return;}document.getElementById('pub-modal-sub').innerHTML=`Publishing <strong>${selected.length} question${selected.length>1?'s':''}</strong> for <strong style="color:var(--accent);font-family:monospace;">${targetWeek}</strong>${targetWeek!==W?` — <strong style="color:var(--success);">${W} rankings will be finalized automatically</strong>`:''}.`;document.getElementById('pub-modal-list').innerHTML=selected.map((r,i)=>`<div class="q-preview-row"><span style="font-family:monospace;font-size:12px;color:var(--accent);width:24px;flex-shrink:0;margin-top:1px;">Q${i+1}</span><div><div style="font-size:11px;font-family:monospace;color:var(--muted);">${esc(r.c['Question ID'])}</div><div style="font-size:13px;margin-top:2px;">${esc(r.c['Question'])}</div></div></div>`).join('');document.getElementById('pub-confirm-btn').disabled=false;document.getElementById('pub-confirm-btn').textContent='Confirm & Publish';document.getElementById('pub-modal').style.display='flex';}
+function closePubModal(){document.getElementById('pub-modal').style.display='none';}
+
+async function writeRanks(week){
+  const text=await ss('get_sheet_summary',{sheet_id:LBR,filters:[{column_name:'Week',column_value:week}]});
+  const allRows=parseRows(text).filter(r=>r.c['Entry ID']&&r.c['Entry ID']!=='ADMIN'&&r.c['Tech Name']&&r.id>0);
+  if(!allRows.length)return 0;
+  const best=new Map();
+  for(const r of allRows){const n=r.c['Tech Name'];const ex=best.get(n);if(!ex||(+r.c['Questions Correct']||0)>(+ex.c['Questions Correct']||0))best.set(n,r);}
+  const ranked=[...best.values()].sort((a,b)=>
+    normPct(b.c['Correct %'])-normPct(a.c['Correct %'])||
+    (+a.c['AnswerSpeed']||Infinity)-(+b.c['AnswerSpeed']||Infinity)
+  );
+  const updates=ranked.map((r,i)=>({row_id:r.id,cells:[{columnId:COL_LB_RANK,value:i+1}]}));
+  await ss('update_rows',{sheet_id:LBR,rows:updates});
+  return ranked.length;
+}
+
+async function doPublish(){
+  const queued=_qbRows.filter(r=>r.c['Status']==='queued').sort((a,b)=>(+a.c['Queue Position']||99)-(+b.c['Queue Position']||99));
+  const selRows=queued.slice(0,_pubCount);
+  const targetWeek=computeTargetWeek();
+  if(!targetWeek||selRows.length<3){flash('Cannot publish','e');closePubModal();return;}
+  const qidCols=[COL_PQ.q1,COL_PQ.q2,COL_PQ.q3,COL_PQ.q4,COL_PQ.q5];
+  const btn=document.getElementById('pub-confirm-btn');
+  const closingCurrentWeek=targetWeek!==W;
+  try{
+    btn.disabled=true;btn.textContent='Publishing…';
+    const pqCells=[{columnId:COL_PQ.week,value:targetWeek},{columnId:COL_PQ.status,value:'published'},{columnId:COL_PQ.pubAt,value:new Date().toISOString()},...selRows.map((r,i)=>({columnId:qidCols[i],value:r.c['Question ID']}))];
+    await ss('add_rows',{sheet_id:PQS,rows:[{cells:pqCells,toBottom:true}]});
+    const qbUpdates=selRows.map(r=>({row_id:r.id,cells:[{columnId:COL_QB.status,value:'archived'},{columnId:COL_QB.usedIn,value:targetWeek},{columnId:COL_QB.qpos,value:''}]}));
+    await ss('update_rows',{sheet_id:QBANK,rows:qbUpdates});
+    selRows.forEach(r=>{r.c['Status']='archived';r.c['Used In Week']=targetWeek;r.c['Queue Position']='';});
+    await renumberQueue();
+    _loadP=null;_pubCount=null;await loadAll();
+    closePubModal();
+    flash(`✓ ${targetWeek} published with ${selRows.length} question${selRows.length>1?'s':''}!`,'s');
+    if(closingCurrentWeek){
+      btn.textContent='Writing ranks…';
+      try{
+        const n=await writeRanks(W);
+        flash(`✓ ${W} rankings finalized — ${n} tech${n!==1?'s':''} ranked`,'s');
+      }catch(e){
+        flash(`${W} rankings not saved: ${e.message}`,'i');
+      }
+    }
+    renderBank();
+  }catch(err){flash('Publish failed: '+err.message,'e');btn.disabled=false;btn.textContent='Confirm & Publish';}
+}
+
+function renderAnalysis(){const tabsEl=document.getElementById('analysis-week-tabs'),content=document.getElementById('analysis-content');if(!_pqRows.length){content.innerHTML='<div class="empty"><div class="big">📭</div><h3>No published quizzes yet</h3></div>';tabsEl.innerHTML='';document.getElementById('analysis-pill').textContent='—';return;}const weeks=[..._pqRows].filter(r=>r.c['Week']).sort((a,b)=>b.c['Week'].localeCompare(a.c['Week'])).map(r=>r.c['Week']);document.getElementById('analysis-pill').textContent=weeks[0]||'—';tabsEl.innerHTML=weeks.map((w,i)=>`<button style="padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;border:none;background:${i===0?'var(--card)':'none'};color:${i===0?'var(--text)':'var(--muted)'};" onclick="switchAnalysisWeek('${w}',this)">${w}</button>`).join('');if(weeks.length)renderAnalysisWeek(weeks[0]);}
+function switchAnalysisWeek(week,el){document.querySelectorAll('#analysis-week-tabs button').forEach(b=>{b.style.background='none';b.style.color='var(--muted)';});el.style.background='var(--card)';el.style.color='var(--text)';document.getElementById('analysis-pill').textContent=week;renderAnalysisWeek(week);}
+function renderAnalysisWeek(week){const wrap=document.getElementById('analysis-content'),pqRow=_pqRows.find(r=>r.c['Week']===week),responses=_lbRows.filter(r=>r.c['Week']===week),total=responses.length;if(!pqRow){wrap.innerHTML='<div class="empty"><div class="big">❓</div><h3>No quiz data for '+esc(week)+'</h3></div>';return;}const qids=[pqRow.c['Q1 ID'],pqRow.c['Q2 ID'],pqRow.c['Q3 ID'],pqRow.c['Q4 ID'],pqRow.c['Q5 ID']].filter(Boolean),qbMap=new Map(_qbRows.map(r=>[r.c['Question ID'],r])),avgScore=total?((responses.reduce((s,r)=>s+(+r.c['Questions Correct']||0),0)/total).toFixed(1)):'—',avgPct=total?Math.round(responses.reduce((s,r)=>s+normPct(r.c['Correct %']),0)/total):0,qCols=['Q1 Correct','Q2 Correct','Q3 Correct','Q4 Correct','Q5 Correct'],qStats=qids.map((qid,qi)=>{const qr=qbMap.get(qid),correct=responses.filter(r=>{const v=r.c[qCols[qi]];return v==='true'||v===true||v==='True';}).length;return{text:qr?.c['Question']||qid,correct,pct:total?Math.round(correct/total*100):0};});wrap.innerHTML=`<div class="stat-row"><div class="stat-card"><div class="stat-val">${total}</div><div class="stat-lbl">Participants</div></div><div class="stat-card"><div class="stat-val">${avgScore}</div><div class="stat-lbl">Avg Score</div></div><div class="stat-card"><div class="stat-val">${total?avgPct+'%':'—'}</div><div class="stat-lbl">Avg Accuracy</div></div></div><div class="card" style="margin-bottom:14px;padding:0;overflow:hidden;"><table><thead><tr><th style="width:40px">Q</th><th>Question</th><th style="width:100px">Correct</th><th style="width:150px">Success Rate</th></tr></thead><tbody>${qStats.map((qs,i)=>`<tr><td style="font-family:monospace;font-size:11px;color:var(--accent)">Q${i+1}</td><td style="font-size:12px">${esc(qs.text)}</td><td style="font-family:monospace">${qs.correct}/${total}</td><td><div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;background:var(--border);border-radius:99px;height:6px;overflow:hidden;"><div style="width:${qs.pct}%;height:100%;border-radius:99px;background:${qs.pct>=80?'var(--success)':qs.pct>=50?'var(--warn)':'var(--error)'}"></div></div><span style="font-family:monospace;font-size:11px;color:var(--muted);width:34px;text-align:right">${qs.pct}%</span></div></td></tr>`).join('')}</tbody></table></div>${total>0?`<div class="card"><div style="font-weight:700;font-size:15px;margin-bottom:12px">Individual Responses</div><table><thead><tr><th>Name</th>${qids.map((_,i)=>`<th style="width:50px;text-align:center">Q${i+1}</th>`).join('')}<th style="width:80px">Score</th></tr></thead><tbody>${responses.sort((a,b)=>(+b.c['Questions Correct']||0)-(+a.c['Questions Correct']||0)).map(r=>`<tr><td><strong>${esc(r.c['Tech Name'])}</strong></td>${qids.map((_,i)=>{const v=r.c[qCols[i]];const ok=v==='true'||v===true||v==='True';return`<td style="text-align:center;color:${ok?'var(--success)':'var(--error)'}">${ok?'✓':'✗'}</td>`;}).join('')}<td style="font-family:monospace;font-weight:600">${+r.c['Questions Correct']||0}/${+r.c['Questions Total']||qids.length}</td></tr>`).join('')}</tbody></table></div>`:''}`;}
+
+document.getElementById('wk-lbl').textContent=W;
+</script>
+</body>
+</html>

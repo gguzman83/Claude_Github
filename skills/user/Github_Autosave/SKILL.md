@@ -19,13 +19,26 @@ modified in this session and make sure it's saved to both GitHub and the workspa
 
 ## AUTHENTICATION
 
-This skill uses the GitHub REST API with a pre-configured PAT. Set it at the start of every run:
+This skill uses **SSH** for all GitHub pushes — no PAT needed, no tokens to rotate.
+Guillermo's SSH key (`~/.ssh/id_ed25519`) is registered on GitHub.
 
-export GITHUB_PAT=$(cat ~/.github_pat)
-export GITHUB_REPO="gguzman83/Claude_Github"
-export GITHUB_API="https://api.github.com/repos/$GITHUB_REPO/contents"
+The local git repo is at:
+```
+/Users/gguzman/Desktop/Claude_Desktop_MTV/Claude_Github
+```
 
-Never write the PAT to any file or include it in commit messages.
+The remote must always use SSH format:
+```
+git@github.com:gguzman83/Claude_Github.git
+```
+
+Verify the remote is set correctly before pushing:
+```bash
+cd /Users/gguzman/Desktop/Claude_Desktop_MTV/Claude_Github
+git remote get-url origin
+# If it shows https://, fix it:
+git remote set-url origin git@github.com:gguzman83/Claude_Github.git
+```
 
 ---
 
@@ -68,26 +81,32 @@ If unsure, default to misc/[filename].
 
 ---
 
-## STEP 3 — Commit each file via GitHub REST API
+## STEP 3 — Copy files into the local repo and push via SSH
 
-3a — Check if file exists (get SHA for updates):
-RESPONSE=$(curl -s -H "Authorization: token $GITHUB_PAT" "$GITHUB_API/<repo_path>")
-SHA=$(echo $RESPONSE | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('sha',''))" 2>/dev/null)
+Since the Cowork session can't SSH out directly, provide Guillermo with the exact terminal
+commands to run. Copy updated files to the Claude_Github folder first, then commit and push.
 
-3b — Encode and commit:
-CONTENT_B64=$(base64 -w 0 < /path/to/local/file)
-if [ -n "$SHA" ]; then
-  PAYLOAD=$(printf '{"message":"Github_Autosave: %s [%s]","content":"%s","sha":"%s"}' "<desc>" "$(date +%Y-%m-%d)" "$CONTENT_B64" "$SHA")
-else
-  PAYLOAD=$(printf '{"message":"Github_Autosave: %s [%s]","content":"%s"}' "<desc>" "$(date +%Y-%m-%d)" "$CONTENT_B64")
-fi
-curl -s -X PUT -H "Authorization: token $GITHUB_PAT" -H "Content-Type: application/json" -d "$PAYLOAD" "$GITHUB_API/<repo_path>"
+3a — Provide these terminal commands:
+```bash
+# Copy updated file(s) into the local git repo
+cp /path/to/updated/file /Users/gguzman/Desktop/Claude_Desktop_MTV/Claude_Github/<target_path>
+
+# Commit and push via SSH (no PAT needed)
+cd /Users/gguzman/Desktop/Claude_Desktop_MTV/Claude_Github
+git add <file(s)>
+git commit -m "Github_Autosave: <description> [YYYY-MM-DD]"
+git push origin main
+```
+
+3b — If the remote isn't SSH yet, include this fix before pushing:
+```bash
+git remote set-url origin git@github.com:gguzman83/Claude_Github.git
+```
 
 Error handling:
-- 401 Unauthorized     → PAT expired, update AUTHENTICATION section
-- 422 Unprocessable    → SHA mismatch, re-fetch SHA and retry
-- File over 1MB        → Warn user, skip, suggest manual upload
-- Host not in allowlist→ Skip GitHub push, save to workspace only, retry later
+- "Permission denied (publickey)" → SSH key not loaded; run `ssh-add ~/.ssh/id_ed25519`
+- "not a git repository"          → Wrong folder; `cd` to Claude_Github, not Claude_Desktop_MTV
+- File over 1MB                   → Warn user, skip, suggest manual upload
 
 ---
 
@@ -118,7 +137,13 @@ Workspace folder:
 Commit: [short SHA or message]
 
 If nothing new: "Nothing new to save — session had no new files or code changes."
-If GitHub blocked: "⚠️ GitHub push blocked (network egress). Files saved to workspace only. Retry from a session with github.com access."
+If GitHub blocked: provide these terminal commands for Guillermo to run locally:
+```
+cd /Users/gguzman/Desktop/Claude_Desktop_MTV/Claude_Github
+git add [list specific files]
+git commit -m "Github_Autosave: [describe what was saved] [YYYY-MM-DD]"
+git push origin main
+```
 
 ---
 
