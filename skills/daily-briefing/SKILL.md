@@ -46,50 +46,60 @@ Limit: 20 results. These are follow-ups he intentionally flagged for action.
 
 ## STEP 2 — Read the CLPSE Spotlight Tracker (Live Google Sheets)
 
-Fetch the live CLPSE Spotlight Tracker from Google Sheets:
-**URL**: `https://docs.google.com/spreadsheets/d/1HCgtlfpknaPxS_R72lmSStRO6Om4jJfFZfW7PoIjTbY/edit`
+Use the **Google Drive MCP connector** to fetch the spreadsheet directly — it's authenticated and works without any public sharing:
+- **Tool**: `mcp__131eb709-f444-448c-baa2-6600a8158042__read_file_content`
+- **fileId**: `1HCgtlfpknaPxS_R72lmSStRO6Om4jJfFZfW7PoIjTbY`
 
-Use the `google_drive_fetch` MCP tool with the spreadsheet ID `1HCgtlfpknaPxS_R72lmSStRO6Om4jJfFZfW7PoIjTbY`.
-
-After fetching, use Bash with Python to parse the data and capture current PT time:
+The tool returns both tabs (Main Tracker + Archive) as a single markdown table string. After fetching, use Bash with Python to parse it:
 
 ```python
-import pandas as pd, pytz, io
+import re, pytz
 from datetime import datetime
 
-# Current time
 pt = pytz.timezone('America/Los_Angeles')
 now = datetime.now(pt)
 print(f"Current time PT: {now.strftime('%I:%M %p PT')}")
 
-# Parse sheets from google_drive_fetch content
-# Main_Tracker is sheet gid=0, Archive is the second sheet
-# Adjust based on the actual content format returned by google_drive_fetch
+# content = the full string returned by read_file_content
+# Rows format: | Project | CLPSE | LOE | Project Status | Completion Date | ...
+wip = []
+on_hold = []
+fy26_complete = []
 
-main_clean = main.dropna(subset=['Project'])
-archive_clean = archive.dropna(subset=['Project'])
+for line in content.split('\n'):
+    cols = [c.strip() for c in line.split('|')]
+    cols = [c for c in cols if c]  # strip empty entries from leading/trailing |
+    if len(cols) >= 4 and cols[0] not in ('Project', ':-:', 'Award Amount'):
+        project, clpse = cols[0], cols[1]
+        status = cols[3].strip().lower()
+        if status == 'wip':
+            wip.append((project, clpse))
+        elif status == 'on hold':
+            on_hold.append((project, clpse))
+        elif status == 'complete' and len(cols) >= 5:
+            completion_date = cols[4].strip()
+            try:
+                if '/' in completion_date:
+                    parts = completion_date.split('/')
+                    if len(parts) == 3:
+                        m, d, y = int(parts[0]), int(parts[1]), int(parts[2])
+                        if y > 2025 or (y == 2025 and m >= 8):
+                            fy26_complete.append(project)
+                elif '2026' in completion_date:
+                    fy26_complete.append(project)
+                elif '2025' in completion_date:
+                    if re.search(r'(Aug|Sep|Oct|Nov|Dec)', completion_date, re.I):
+                        fy26_complete.append(project)
+            except:
+                pass
 
-# Stats
-wip = main_clean[main_clean['Project Status'].str.lower() == 'wip']
-on_hold = main_clean[main_clean['Project Status'].str.lower() == 'on hold']
-archive_clean['Completion Date'] = pd.to_datetime(archive_clean['Completion Date'], errors='coerce')
-fy26 = archive_clean[
-    (archive_clean['Proejct Status'].str.upper().str.strip() == 'COMPLETE') &
-    (archive_clean['Completion Date'] >= '2025-08-01')
-]
-print(f"Total Active: {len(main_clean)} | WIP: {len(wip)} | On Hold: {len(on_hold)} | Completed FY26: {len(fy26)}")
-for _, r in wip.iterrows(): print(f"WIP: {r['Project']} | {r['CLPSE']}")
-for _, r in on_hold.iterrows(): print(f"HOLD: {r['Project']} | {r['CLPSE']}")
+print(f"Total Active: {len(wip)+len(on_hold)} | WIP: {len(wip)} | On Hold: {len(on_hold)} | Completed FY26: {len(fy26_complete)}")
+for p, c in wip: print(f"WIP: {p} | {c}")
+for p, c in on_hold: print(f"HOLD: {p} | {c}")
 ```
 
-**Fallback**: If `google_drive_fetch` fails, try the CSV export URLs:
-- Main_Tracker: `https://docs.google.com/spreadsheets/d/1HCgtlfpknaPxS_R72lmSStRO6Om4jJfFZfW7PoIjTbY/export?format=csv&gid=0`
-- Archive: `https://docs.google.com/spreadsheets/d/1HCgtlfpknaPxS_R72lmSStRO6Om4jJfFZfW7PoIjTbY/export?format=csv&gid=1`
-
-Use `web_fetch` to download and parse them as CSV with pandas.
-
-If all fetch attempts fail, include in the briefing:
-⚠️ CLPSE data unavailable — could not access Google Sheets. Check sharing permissions.
+If the Drive MCP call fails, include in the briefing:
+⚠️ CLPSE data unavailable — Google Drive connector error. Check that the file is shared with the connected Google account.
 
 ---
 
