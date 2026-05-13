@@ -1050,19 +1050,26 @@ function buildSyncText(){
   const lines = [];
   sections.forEach(s => {
     lines.push(`1. ${s.label}`);
-    s.notes.forEach((n, i) => {
-      lines.push(`   ${i+1}. ${n.done ? '~~'+n.text+'~~' : n.text}`);
-      if (n.detail) {
-        n.detail.split('\n').filter(l=>l.trim()).forEach(dl => lines.push(`         i. ${dl}`));
-      }
-    });
+    if (!s.notes || s.notes.length === 0) {
+      lines.push(`   1. N/A`);
+    } else {
+      s.notes.forEach((n, i) => {
+        lines.push(`   ${i+1}. ${n.done ? '~~'+n.text+'~~' : n.text}`);
+        if (n.detail) {
+          n.detail.split('\n').filter(l=>l.trim()).forEach(dl => lines.push(`         i. ${dl}`));
+        }
+      });
+    }
     lines.push('');
   });
+  // Keep Watch - Monitoring
+  lines.push('1. Keep Watch - Monitoring:');
   if (state.live && state.live.length > 0) {
-    lines.push('1. Notes:');
     state.live.forEach((e,i) => lines.push(`   ${i+1}. ${fmtT(e.ts)}  ${e.text}`));
-    lines.push('');
+  } else {
+    lines.push(`   1. N/A`);
   }
+  lines.push('');
   return lines.join('\n');
 }
 
@@ -1118,33 +1125,46 @@ function buildSyncHtml(){
   sections.forEach(s => {
     html += `<div style="margin-bottom:18px">`;
     html += `<div style="margin-bottom:6px;font-weight:700;color:#1e293b">${esc(s.label)}</div>`;
-    s.notes.forEach((n, i) => {
-      const body = linkifyInline(n.text);
-      const txt  = n.done ? `<s style="color:#94a3b8">${body}</s>` : body;
-      // Flex row: number pinned left, content fills right — works even if text has <br>
+    if (!s.notes || s.notes.length === 0) {
+      // Empty section — show N/A placeholder
       html += `<div style="display:flex;gap:8px;padding-left:16px;margin-bottom:10px;align-items:flex-start">`;
-      html += `<span style="flex-shrink:0;min-width:18px;color:#64748b;padding-top:1px">${i+1}.</span>`;
-      html += `<div style="flex:1;min-width:0">${txt}`;
-      if (n.detail) {
-        n.detail.split('\n').filter(l => l.trim()).forEach(dl => {
-          html += `<div style="padding-left:12px;color:#64748b;margin-top:4px">↳ ${linkifyInline(dl)}</div>`;
-        });
-      }
-      html += `</div></div>`;
-    });
+      html += `<span style="flex-shrink:0;min-width:18px;color:#64748b;padding-top:1px">1.</span>`;
+      html += `<div style="flex:1;min-width:0;color:#94a3b8;font-style:italic">N/A</div>`;
+      html += `</div>`;
+    } else {
+      s.notes.forEach((n, i) => {
+        const body = linkifyInline(n.text);
+        const txt  = n.done ? `<s style="color:#94a3b8">${body}</s>` : body;
+        html += `<div style="display:flex;gap:8px;padding-left:16px;margin-bottom:10px;align-items:flex-start">`;
+        html += `<span style="flex-shrink:0;min-width:18px;color:#64748b;padding-top:1px">${i+1}.</span>`;
+        html += `<div style="flex:1;min-width:0">${txt}`;
+        if (n.detail) {
+          n.detail.split('\n').filter(l => l.trim()).forEach(dl => {
+            html += `<div style="padding-left:12px;color:#64748b;margin-top:4px">↳ ${linkifyInline(dl)}</div>`;
+          });
+        }
+        html += `</div></div>`;
+      });
+    }
     html += `</div>`;
   });
+  // Keep Watch - Monitoring — always shown
+  html += `<div style="margin-bottom:18px">`;
+  html += `<div style="margin-bottom:6px;font-weight:700;color:#1e293b">👀 Keep Watch - Monitoring:</div>`;
   if (state.live && state.live.length > 0) {
-    html += `<div style="margin-bottom:18px">`;
-    html += `<div style="margin-bottom:6px;font-weight:700;color:#1e293b">👀 Keep Watch - Monitoring:</div>`;
     state.live.forEach((e, i) => {
       html += `<div style="display:flex;gap:8px;padding-left:16px;margin-bottom:10px;align-items:flex-start">`;
       html += `<span style="flex-shrink:0;min-width:18px;color:#64748b;padding-top:1px">${i+1}.</span>`;
       html += `<div style="flex:1;min-width:0"><span style="color:#94a3b8;font-size:11px">${esc(fmtT(e.ts))}</span>&nbsp; ${linkifyInline(e.text)}</div>`;
       html += `</div>`;
     });
+  } else {
+    html += `<div style="display:flex;gap:8px;padding-left:16px;margin-bottom:10px;align-items:flex-start">`;
+    html += `<span style="flex-shrink:0;min-width:18px;color:#64748b;padding-top:1px">1.</span>`;
+    html += `<div style="flex:1;min-width:0;color:#94a3b8;font-style:italic">N/A</div>`;
     html += `</div>`;
   }
+  html += `</div>`;
   html += `</div>`;
   return html;
 }
