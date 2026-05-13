@@ -253,13 +253,11 @@ function appendToDoc(payloadJson) {
       item.setLineSpacing(1.15);
       item.setSpacingBefore(spacingBefore);
       item.setSpacingAfter(spacingAfter);
-      if (!applyMarkdownFormatting(item, clean, FONT)) {
-        var t = item.editAsText();
-        t.setFontFamily(FONT);
-        t.setFontSize(12);
-        t.setBold(false);
-        t.setItalic(false);
-      }
+      var lineFormatted = applyMarkdownFormatting(item, clean, FONT);
+      var t = item.editAsText();
+      t.setFontFamily(FONT);   // always enforce regardless of markdown path
+      t.setFontSize(12);
+      if (!lineFormatted) { t.setBold(false); t.setItalic(false); }
       if (strikethrough) item.editAsText().setStrikethrough(true);
       return item;
     }
@@ -657,13 +655,11 @@ function archiveNoteToDoc(noteText, noteDetail, category, timestamp) {
       subItem.setLineSpacing(1.15);
       subItem.setSpacingBefore(2);
       subItem.setSpacingAfter(2);
-      if (!applyMarkdown(subItem, noteDetail.trim())) {
-        var subT = subItem.editAsText();
-        subT.setFontFamily(FONT);
-        subT.setFontSize(12);
-        subT.setBold(false);
-        subT.setItalic(false);
-      }
+      var subFormatted = applyMarkdown(subItem, noteDetail.trim());
+      var subT = subItem.editAsText();
+      subT.setFontFamily(FONT);   // always enforce — applyMarkdown may or may not have set this
+      subT.setFontSize(12);
+      if (!subFormatted) { subT.setBold(false); subT.setItalic(false); }
     }
 
     // ── Insert main item — render markdown so **bold** and links display properly ──
@@ -673,13 +669,11 @@ function archiveNoteToDoc(noteText, noteDetail, category, timestamp) {
     mainItem.setLineSpacing(1.15);
     mainItem.setSpacingBefore(4);
     mainItem.setSpacingAfter(4);
-    if (!applyMarkdown(mainItem, mainText)) {
-      var mainT = mainItem.editAsText();
-      mainT.setFontFamily(FONT);
-      mainT.setFontSize(12);
-      mainT.setBold(false);
-      mainT.setItalic(false);
-    }
+    var mainFormatted = applyMarkdown(mainItem, mainText);
+    var mainT = mainItem.editAsText();
+    mainT.setFontFamily(FONT);   // always enforce — applyMarkdown may or may not have set this
+    mainT.setFontSize(12);
+    if (!mainFormatted) { mainT.setBold(false); mainT.setItalic(false); }
 
     doc.saveAndClose();
     return { success: true };
