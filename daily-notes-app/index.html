@@ -1152,26 +1152,41 @@ function buildSyncHtml(){
 // ── Shared section builder ────────────────────────────────────────────────────
 function _buildSyncSections(){
   const out = [];
-  const add = (label, notes) => { if (notes && notes.length) out.push({label, notes}); };
-  add('Incidents & Escalations:', state.notes.incidents);
-  add('My Work:', state.notes.tasks);
-  add('Projects & Initiatives:', state.notes.projects);
-  add('Follow-ups:', state.notes.slack);
-  add('CLPSE:', state.notes.clpse);
-  add('Split Role:', state.notes.splitrole);
-  add('My Personal Notes:', state.notes.personal);
+  const addIfHas = (label, notes) => { if (notes && notes.length) out.push({label, notes}); };
+  const addAlways = (label, notes) => out.push({label, notes: notes || []});
+  addIfHas('Incidents & Escalations:', state.notes.incidents);
+  addIfHas('My Work:', state.notes.tasks);
+  addIfHas('Projects & Initiatives:', state.notes.projects);
+  addAlways('Follow-ups:', state.notes.slack);          // always include, even if empty
+  addIfHas('CLPSE:', state.notes.clpse);
+  addIfHas('Split Role:', state.notes.splitrole);
+  addIfHas('My Personal Notes:', state.notes.personal);
   return out;
 }
 
 // ── Structured payload sent to Apps Script for proper Google Doc formatting ───
 function buildSyncPayload(){
+  // Convert Keep Watch - Monitoring (live) entries into section notes
+  const liveNotes = (state.live||[]).map(e => {
+    const d = new Date(e.ts);
+    const h = d.getHours() % 12 || 12;
+    const m = String(d.getMinutes()).padStart(2,'0');
+    const ap = d.getHours() < 12 ? 'AM' : 'PM';
+    return {text: `${h}:${m} ${ap}  ${e.text}`, done: false, detail: ''};
+  });
+
+  const sections = _buildSyncSections().map(s => ({
+    label: s.label,
+    notes: s.notes.map(n => ({text:n.text, done:!!n.done, detail:n.detail||''}))
+  }));
+
+  // Always include Keep Watch - Monitoring as final section
+  sections.push({label: 'Keep Watch - Monitoring:', notes: liveNotes});
+
   return JSON.stringify({
     targetDate: _syncTargetDate || new Date().toISOString(),
-    sections: _buildSyncSections().map(s => ({
-      label: s.label,
-      notes: s.notes.map(n => ({text:n.text, done:!!n.done, detail:n.detail||''}))
-    })),
-    live: (state.live||[]).map(e=>({ts:e.ts,text:e.text}))
+    sections: sections,
+    live: []  // live is now handled as a named section above
   });
 }
 

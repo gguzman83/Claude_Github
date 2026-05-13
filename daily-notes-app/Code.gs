@@ -269,10 +269,9 @@ function appendToDoc(payloadJson) {
     // Main note lines → DIGIT numbered bullets at level 0
     // Continuation lines of multi-line notes → DISC bullets at level 1
     // Sub-detail lines → DISC bullets at level 1
+    // Empty sections → DISC bullet with "N/A"
     function writeSection(label, notes) {
-      if (!notes || notes.length === 0) return;
-      var newNotes = notes.filter(function(n) { return !alreadyInDoc(n.text); });
-      if (newNotes.length === 0) return;
+      var newNotes = (notes || []).filter(function(n) { return !alreadyInDoc(n.text); });
 
       // Blank paragraph breaks the list context so numbering resets to 1
       var spacer = body.appendParagraph('');
@@ -291,6 +290,12 @@ function appendToDoc(payloadJson) {
         ht.setBold(true);
         ht.setItalic(false);
         ht.setUnderline(false);
+      }
+
+      // If no notes (or all already in doc), write N/A placeholder
+      if (newNotes.length === 0) {
+        writeLine('N/A', 0, DocumentApp.GlyphType.DISC, 5, 2, false);
+        return;
       }
 
       for (var i = 0; i < newNotes.length; i++) {
@@ -328,38 +333,8 @@ function appendToDoc(payloadJson) {
       writeSection(sections[s].label, sections[s].notes);
     }
 
-    // ── Notes (live entries) — only add entries not already in the doc ────────
-    var live = data.live || [];
-    var newLive = live.filter(function(e) {
-      var timeStr = Utilities.formatDate(new Date(e.ts), tz, 'h:mm a');
-      return !alreadyInDoc(timeStr + '  ' + e.text);
-    });
-    if (newLive.length > 0) {
-      var liveSpacer = body.appendParagraph('');
-      liveSpacer.setSpacingBefore(0);
-      liveSpacer.setSpacingAfter(0);
-      if (!alreadyInDoc('Live Notes:')) {
-        var liveHdr = body.appendParagraph('Live Notes:');
-        liveHdr.setLineSpacing(1.15);
-        liveHdr.setSpacingBefore(14);
-        liveHdr.setSpacingAfter(4);
-        var liveHdrText = liveHdr.editAsText();
-        liveHdrText.setFontFamily(FONT);
-        liveHdrText.setBold(true);
-        liveHdrText.setItalic(false);
-        liveHdrText.setUnderline(false);
-      }
-      for (var i = 0; i < newLive.length; i++) {
-        var timeStr = Utilities.formatDate(new Date(newLive[i].ts), tz, 'h:mm a');
-        var liveLines = (timeStr + '  ' + newLive[i].text).split('\n')
-                          .map(function(l){ return l.trim(); }).filter(Boolean);
-        if (liveLines.length === 0) continue;
-        writeLine(liveLines[0], 0, DocumentApp.GlyphType.DIGIT, 5, 2, false);
-        for (var ll = 1; ll < liveLines.length; ll++) {
-          writeLine(liveLines[ll], 1, DocumentApp.GlyphType.DISC, 2, 2, false);
-        }
-      }
-    }
+    // Note: live (Keep Watch - Monitoring) entries are now sent as a named section
+    // from the frontend and handled by writeSection() above.
 
     doc.saveAndClose();
     return { success: true };
