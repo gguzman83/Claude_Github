@@ -253,11 +253,13 @@ function appendToDoc(payloadJson) {
       item.setLineSpacing(1.15);
       item.setSpacingBefore(spacingBefore);
       item.setSpacingAfter(spacingAfter);
-      var lineFormatted = applyMarkdownFormatting(item, clean, FONT);
-      var t = item.editAsText();
-      t.setFontFamily(FONT);   // always enforce regardless of markdown path
-      t.setFontSize(12);
-      if (!lineFormatted) { t.setBold(false); t.setItalic(false); }
+      if (!applyMarkdownFormatting(item, clean, FONT)) {
+        var t = item.editAsText();
+        t.setFontFamily(FONT);
+        t.setFontSize(12);
+        t.setBold(false);
+        t.setItalic(false);
+      }
       if (strikethrough) item.editAsText().setStrikethrough(true);
       return item;
     }
@@ -267,9 +269,10 @@ function appendToDoc(payloadJson) {
     // Main note lines → DIGIT numbered bullets at level 0
     // Continuation lines of multi-line notes → DISC bullets at level 1
     // Sub-detail lines → DISC bullets at level 1
-    // Empty sections → DISC bullet with "N/A"
     function writeSection(label, notes) {
-      var newNotes = (notes || []).filter(function(n) { return !alreadyInDoc(n.text); });
+      if (!notes || notes.length === 0) return;
+      var newNotes = notes.filter(function(n) { return !alreadyInDoc(n.text); });
+      if (newNotes.length === 0) return;
 
       // Blank paragraph breaks the list context so numbering resets to 1
       var spacer = body.appendParagraph('');
@@ -288,12 +291,6 @@ function appendToDoc(payloadJson) {
         ht.setBold(true);
         ht.setItalic(false);
         ht.setUnderline(false);
-      }
-
-      // If no notes (or all already in doc), write N/A placeholder
-      if (newNotes.length === 0) {
-        writeLine('N/A', 0, DocumentApp.GlyphType.DISC, 5, 2, false);
-        return;
       }
 
       for (var i = 0; i < newNotes.length; i++) {
@@ -331,8 +328,38 @@ function appendToDoc(payloadJson) {
       writeSection(sections[s].label, sections[s].notes);
     }
 
-    // Note: live (Keep Watch - Monitoring) entries are now sent as a named section
-    // from the frontend and handled by writeSection() above.
+    // ── Notes (live entries) — only add entries not already in the doc ────────
+    var live = data.live || [];
+    var newLive = live.filter(function(e) {
+      var timeStr = Utilities.formatDate(new Date(e.ts), tz, 'h:mm a');
+      return !alreadyInDoc(timeStr + '  ' + e.text);
+    });
+    if (newLive.length > 0) {
+      var liveSpacer = body.appendParagraph('');
+      liveSpacer.setSpacingBefore(0);
+      liveSpacer.setSpacingAfter(0);
+      if (!alreadyInDoc('Live Notes:')) {
+        var liveHdr = body.appendParagraph('Live Notes:');
+        liveHdr.setLineSpacing(1.15);
+        liveHdr.setSpacingBefore(14);
+        liveHdr.setSpacingAfter(4);
+        var liveHdrText = liveHdr.editAsText();
+        liveHdrText.setFontFamily(FONT);
+        liveHdrText.setBold(true);
+        liveHdrText.setItalic(false);
+        liveHdrText.setUnderline(false);
+      }
+      for (var i = 0; i < newLive.length; i++) {
+        var timeStr = Utilities.formatDate(new Date(newLive[i].ts), tz, 'h:mm a');
+        var liveLines = (timeStr + '  ' + newLive[i].text).split('\n')
+                          .map(function(l){ return l.trim(); }).filter(Boolean);
+        if (liveLines.length === 0) continue;
+        writeLine(liveLines[0], 0, DocumentApp.GlyphType.DIGIT, 5, 2, false);
+        for (var ll = 1; ll < liveLines.length; ll++) {
+          writeLine(liveLines[ll], 1, DocumentApp.GlyphType.DISC, 2, 2, false);
+        }
+      }
+    }
 
     doc.saveAndClose();
     return { success: true };
@@ -655,11 +682,13 @@ function archiveNoteToDoc(noteText, noteDetail, category, timestamp) {
       subItem.setLineSpacing(1.15);
       subItem.setSpacingBefore(2);
       subItem.setSpacingAfter(2);
-      var subFormatted = applyMarkdown(subItem, noteDetail.trim());
-      var subT = subItem.editAsText();
-      subT.setFontFamily(FONT);   // always enforce — applyMarkdown may or may not have set this
-      subT.setFontSize(12);
-      if (!subFormatted) { subT.setBold(false); subT.setItalic(false); }
+      if (!applyMarkdown(subItem, noteDetail.trim())) {
+        var subT = subItem.editAsText();
+        subT.setFontFamily(FONT);
+        subT.setFontSize(12);
+        subT.setBold(false);
+        subT.setItalic(false);
+      }
     }
 
     // ── Insert main item — render markdown so **bold** and links display properly ──
@@ -669,11 +698,13 @@ function archiveNoteToDoc(noteText, noteDetail, category, timestamp) {
     mainItem.setLineSpacing(1.15);
     mainItem.setSpacingBefore(4);
     mainItem.setSpacingAfter(4);
-    var mainFormatted = applyMarkdown(mainItem, mainText);
-    var mainT = mainItem.editAsText();
-    mainT.setFontFamily(FONT);   // always enforce — applyMarkdown may or may not have set this
-    mainT.setFontSize(12);
-    if (!mainFormatted) { mainT.setBold(false); mainT.setItalic(false); }
+    if (!applyMarkdown(mainItem, mainText)) {
+      var mainT = mainItem.editAsText();
+      mainT.setFontFamily(FONT);
+      mainT.setFontSize(12);
+      mainT.setBold(false);
+      mainT.setItalic(false);
+    }
 
     doc.saveAndClose();
     return { success: true };
