@@ -1,6 +1,6 @@
 ---
 name: save-master-reference-doc
-description: "Saves any new changes or modifications to the Claude_Environment_Master_Reference doc, archives older versions into the Master_Reference_doc folder, and pushes to GitHub. Use whenever the user says 'update the master reference doc', 'save changes to the reference', 'version the reference doc', or any similar phrasing. Also trigger proactively at the end of any session where a skill was modified, a new skill was added, Apps Script instructions changed, or config values were updated."
+description: "Saves any new changes or modifications to the Claude_Environment_Master_Reference doc, archives older versions into the Archived folder, and pushes to GitHub. Use whenever the user says 'update the master reference doc', 'save changes to the reference', 'version the reference doc', or any similar phrasing. Also trigger proactively at the end of any session where a skill was modified, a new skill was added, Apps Script instructions changed, or config values were updated."
 ---
 
 # Save Master Reference Skill
@@ -45,21 +45,21 @@ Build a changelog list — one line per change. Example format:
 
 ## Step 2 — Determine the New Version Number
 
-Find the current version by checking the workspace docs folder:
+Find the current version by checking the sandbox workspace docs folder:
 
-    ls ~/Documents/Claude/Claude_Desktop_MTV/docs/Claude_Environment_Master_Reference_v*.docx
+    ls /sessions/$(ls /sessions/ | head -1)/mnt/Claude_MBA/docs/Claude_Environment_Master_Reference_v*.docx
 
 Parse the highest version number and increment by 1. Format: v3, v4, etc.
 
 New filename format: Claude_Environment_Master_Reference_v[N].docx
-Version stamp format for inside the doc: v[N] — [Month DD, YYYY] (e.g. v8 — May 4, 2026)
+Version stamp format for inside the doc: v[N] — [Month DD, YYYY] (e.g. v8 — May 14, 2026)
 
 ---
 
 ## Step 3 — Rebuild the Master Reference Doc
 
 Read the docx SKILL.md before writing any code:
-`/sessions/zealous-serene-dijkstra/mnt/.claude/skills/docx/SKILL.md`
+`/sessions/$(ls /sessions/ | head -1)/mnt/.claude/skills/docx/SKILL.md`
 
 Rebuild the full document using the existing node.js docx build script pattern,
 incorporating all changes identified in Step 1.
@@ -75,8 +75,7 @@ Key things to update in the rebuilt doc:
 6. Section 3 (Key Config) — update any changed values
 
 Save to:
-- `~/Documents/Claude/Claude_Desktop_MTV/docs/Claude_Environment_Master_Reference_v[N].docx`
-- `~/Documents/Claude/Claude_Desktop_MTV/docs/Claude_Environment_Master_Reference_LATEST.docx`
+- `/sessions/$(ls /sessions/ | head -1)/mnt/Claude_MBA/docs/Claude_Environment_Master_Reference_v[N].docx`
 
 Call present_files with the output path.
 
@@ -84,32 +83,31 @@ Call present_files with the output path.
 
 ## Step 4 — Archive Older Versions
 
-After saving the new version, move any previous versioned files out of `docs/` into
-the `Master_Reference_doc/` archive folder. This keeps the `docs/` root clean — only
-the freshly built version and LATEST live there.
+**This step is mandatory every time a new version is saved.**
 
-**Workspace folder** (`~/Documents/Claude/Claude_Desktop_MTV/docs/`):
+After saving the new version, move ALL previous versioned files out of `docs/` into
+the `Archived/` folder. The `docs/` root should ALWAYS contain exactly one versioned
+file — the one just built. No LATEST file. No duplicates.
 
 ```bash
-DOCS=~/Documents/Claude/Claude_Desktop_MTV/docs
-ARCHIVE="$DOCS/Master_Reference_doc"
+DOCS=/sessions/$(ls /sessions/ | head -1)/mnt/Claude_MBA/docs
+ARCHIVE="$DOCS/Archived"
 NEW_FILE="Claude_Environment_Master_Reference_v[N].docx"   # substitute actual version
 
 mkdir -p "$ARCHIVE"
 
 for f in "$DOCS"/Claude_Environment_Master_Reference_v*.docx; do
+  [ -f "$f" ] || continue
   fname=$(basename "$f")
   if [[ "$fname" != "$NEW_FILE" ]]; then
-    mv "$f" "$ARCHIVE/$fname"
-    echo "Archived: $fname"
+    mv "$f" "$ARCHIVE/$fname" && echo "Archived: $fname" || echo "Could not move: $fname — use mcp__cowork__allow_cowork_file_delete if blocked"
   fi
 done
 ```
 
-After this, `docs/` should contain only:
-- `Claude_Environment_Master_Reference_v[N].docx`   <- new version
-- `Claude_Environment_Master_Reference_LATEST.docx` <- current pointer
-- `Master_Reference_doc/`                           <- all prior versions
+After this step, `docs/` must contain only:
+- `Claude_Environment_Master_Reference_v[N].docx`   ← new version (the only file)
+- `Archived/`                                        ← all prior versions
 
 **GitHub repo** (`Claude_Github/docs/`):
 Apply the same move using `git mv` in the local repo before committing (handled in Step 5).
@@ -118,38 +116,50 @@ Apply the same move using `git mv` in the local repo before committing (handled 
 
 ## Step 5 — Push to GitHub
 
-Commit the new version, the archive moves, and any updated LATEST in one operation:
+**Load the PAT from ~/.claude-pat — never ask Guillermo for it:**
+
+The PAT is stored locally at `~/.claude-pat` (not git-tracked, never pushed to GitHub).
+To set it up on a new machine: `echo "ghp_TOKEN" > ~/.claude-pat && chmod 600 ~/.claude-pat`
 
 ```bash
-REPO=~/Documents/Claude/Claude_Desktop_MTV/Claude_Github
+PAT=$(cat ~/.claude-pat 2>/dev/null | tr -d '[:space:]')
+[ -z "$PAT" ] && echo "⚠️  No PAT found at ~/.claude-pat — create it first" && exit 1
+echo "PAT loaded: ${PAT:0:8}..."
+```
 
-# Create archive folder in repo if needed
-mkdir -p "$REPO/docs/Master_Reference_doc"
+**Auto-detect the git root — the repo root is the Claude_MBA folder, NOT Claude_Github:**
 
-# git mv older versioned files into archive (substitute actual NEW version)
-for f in "$REPO"/docs/Claude_Environment_Master_Reference_v*.docx; do
-  fname=$(basename "$f")
-  if [[ "$fname" != "Claude_Environment_Master_Reference_v[N].docx" ]]; then
-    git -C "$REPO" mv "docs/$fname" "docs/Master_Reference_doc/$fname"
-    echo "git mv: $fname"
-  fi
-done
+```bash
+# The git root is Claude_MBA (parent of Claude_Github)
+REPO=$(find ~ -maxdepth 3 -name "Claude_MBA" -type d 2>/dev/null | head -1)
+# Known paths as fallback:
+#   Work:  ~/Desktop/Claude_Desktop_MTV
+#   Home:  ~/Claude_MBA
+[ -z "$REPO" ] && REPO=~/Desktop/Claude_Desktop_MTV
+[ ! -d "$REPO" ] && REPO=~/Claude_MBA
+echo "Using repo root: $REPO"
+```
 
-# Stage new version and updated LATEST
+Commit the new version and archive moves in one operation:
+
+```bash
+# Stage all relevant files (paths relative to Claude_MBA git root)
 git -C "$REPO" add docs/Claude_Environment_Master_Reference_v[N].docx
-git -C "$REPO" add docs/Claude_Environment_Master_Reference_LATEST.docx
+git -C "$REPO" add docs/Archived/
+git -C "$REPO" add skills/user/save-master-reference-doc/SKILL.md
+git -C "$REPO" add configs/github-config.md
 
-# Commit and push
+# Commit and push using stored PAT
 git -C "$REPO" commit -m "update: Master Reference v[N] -- [one-line summary] [YYYY-MM-DD]"
-git -C "$REPO" push
+git -C "$REPO" pull --rebase https://${PAT}@github.com/gguzman83/Claude_Github.git main
+git -C "$REPO" push https://${PAT}@github.com/gguzman83/Claude_Github.git main
 ```
 
 Report results:
 
     Saved to GitHub:
-    - docs/Claude_Environment_Master_Reference_v[N].docx                          (new)
-    - docs/Claude_Environment_Master_Reference_LATEST.docx                        (updated)
-    - docs/Master_Reference_doc/Claude_Environment_Master_Reference_v[N-1].docx  (archived)
+    - docs/Claude_Environment_Master_Reference_v[N].docx             (new)
+    - docs/Archived/Claude_Environment_Master_Reference_v[N-1].docx  (archived)
     View: https://github.com/gguzman83/Claude_Github
 
 ---
@@ -166,6 +176,14 @@ Include in the same commit summary so everything is tracked together.
 ---
 
 ## Changelog History (seed values — update as versions are saved)
+
+v8 | May 14, 2026   | daily-briefing formatting overhaul (color-coded tags, 12hr time, pipe
+                      separators, square P1/P2/P3 headers); github-autosave skill unified
+                      (replaces autosave + github-sync); workspace-organizer skill added;
+                      Daily Notes App: fixed Keep Watch drag highlight + PINNED tab formatting;
+                      save-master-reference-doc updated: archive folder renamed to Archived,
+                      LATEST file removed, PAT stored in configs/github-config.md,
+                      auto-detect repo path for work + home machines
 
 v7 | May 4, 2026    | Daily Notes App: Keep Watch section upgraded with full note UI --
                       edit, checkbox, drag-drop, Pin & Archive matching all other sections;
@@ -196,8 +214,8 @@ v1 | Apr 20, 2026   | Initial release -- 6 skills, key config, setup checklist, 
 - Cover page shows new version + date
 - Changelog table has new row at the top
 - All changed sections reflect actual changes (not just the version stamp)
-- Older versioned files moved to docs/Master_Reference_doc/ (workspace + GitHub)
-- docs/ root contains only the new version + LATEST
+- Older versioned files moved to docs/Archived/ (workspace + GitHub)
+- docs/ root contains only the new versioned file — no LATEST, no duplicates
 - File presented with present_files
-- GitHub push confirmed if requested
+- GitHub push confirmed with PAT auto-loaded from configs/github-config.md
 - Updated SKILL.md files committed alongside the doc if any skill changed
