@@ -44,7 +44,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .card-title{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700}
 .badges{display:flex;gap:5px;align-items:center}
 .badge{font-size:10px;padding:2px 8px;border-radius:99px;font-weight:700}
-.card-body{padding:10px;min-height:100px}
+.card-body{padding:10px;min-height:40px}
 .empty{color:#cbd5e1;font-size:12px;text-align:center;padding:30px 0}
 /* Note */
 .note{padding:9px 11px;background:#fafafa;border-radius:8px;border:1px solid #f1f5f9;margin-bottom:7px;transition:all .15s}
@@ -166,7 +166,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 
   <!-- Tabs -->
-  <div class="tabs">
+  <div class="tabs" style="justify-content:flex-start">
+    <button class="btn btn-primary btn-sm" onclick="openQuickCapture()" style="margin:6px 8px 6px 0;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:5px;box-shadow:0 1px 6px rgba(99,102,241,.3);flex-shrink:0">⚡ Quick Capture</button>
+    <div style="width:1px;background:#e2e8f0;margin:8px 6px 8px 0;flex-shrink:0"></div>
     <button class="tab active" onclick="switchTab('notes',this)">📋 Today's Notes</button>
     <button class="tab" onclick="switchTab('pinned',this)">📌 Pinned Notes</button>
     <button class="tab" onclick="switchTab('resources',this)">🔗 Resources & Docs</button>
@@ -175,104 +177,78 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <!-- Notes Tab -->
   <div id="tab-notes">
 
-    <!-- Row 0: Quick Capture | My Personal Notes -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:16px 20px 0">
-      <div class="capture">
-        <div class="capture-hdr">
-          <span style="font-size:15px">⚡</span>
-          <span style="font-size:12px;font-weight:700;color:#374151">Quick Capture</span>
+    <!-- Two independent columns — cards in each column stack and collapse independently -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:16px 20px 0;align-items:start">
+
+      <!-- Left column: Personal Notes → Tasks → Projects -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card" id="card-personal">
+          <div class="card-hdr prs-hdr" id="hdr-personal" onclick="toggleCat('personal')">
+            <div class="card-title"><span>📝</span><span class="prs-t">My Personal Notes</span><span class="chevron">▾</span></div>
+            <div class="badges"><span class="badge done-b" id="done-personal" style="display:none"></span><span class="badge prs-b" id="cnt-personal">0</span></div>
+          </div>
+          <div class="card-body" id="list-personal" ondragover="bodyDragOver(event,'personal')" ondragleave="bodyDragLeave(event,'personal')" ondrop="bodyDrop(event,'personal')"></div>
         </div>
-        <div class="capture-body">
-          <form onsubmit="addNote(event)">
-            <div style="display:flex;gap:8px;align-items:flex-start">
-              <textarea class="inp" id="note-inp" placeholder="Jot a note — Enter to add, ⌘↵ for new line…" autocomplete="off" rows="3" onpaste="handlePasteWithLinks(event,'note-inp')" onkeydown="captureKeydown(event,'note-inp')" oninput="autoResizeTA(this);updateCapturePreview()" style="resize:none;overflow:hidden;line-height:1.5;min-height:70px;flex:1"></textarea>
-              <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
-                <select class="sel" id="cat-sel" onchange="if(this.value!=='auto')expandCat(this.value)">
-                  <option value="auto">✨ Auto-detect</option>
-                  <option value="incidents">🔥 Incidents</option>
-                  <option value="tasks">✅ Tasks</option>
-                  <option value="projects">🏗️ Projects</option>
-                  <option value="clpse">🔵 CLPSE</option>
-                  <option value="splitrole">🟡 Split Role</option>
-                  <option value="slack">💬 Follow-ups</option>
-                  <option value="personal">📝 Personal Notes</option>
-                </select>
-                <button type="submit" class="btn btn-primary" style="width:100%">Add</button>
+        <div class="card" id="card-tasks">
+          <div class="card-hdr tsk-hdr" id="hdr-tasks" onclick="toggleCat('tasks')">
+            <div class="card-title"><span>✅</span><span class="tsk-t">Tasks & Action Items</span><span class="chevron">▾</span></div>
+            <div class="badges"><span class="badge done-b" id="done-tasks" style="display:none"></span><span class="badge tsk-b" id="cnt-tasks">0</span></div>
+          </div>
+          <div class="card-body" id="list-tasks" ondragover="bodyDragOver(event,'tasks')" ondragleave="bodyDragLeave(event,'tasks')" ondrop="bodyDrop(event,'tasks')"></div>
+        </div>
+        <div class="card" id="card-projects">
+          <div class="card-hdr prj-hdr" id="hdr-projects" onclick="toggleCat('projects')">
+            <div class="card-title"><span>🏗️</span><span class="prj-t">Projects & Initiatives</span><span class="chevron">▾</span></div>
+            <div class="badges"><span class="badge done-b" id="done-projects" style="display:none"></span><span class="badge prj-b" id="cnt-projects">0</span></div>
+          </div>
+          <div class="card-body" id="list-projects" ondragover="bodyDragOver(event,'projects')" ondragleave="bodyDragLeave(event,'projects')" ondrop="bodyDrop(event,'projects')"></div>
+        </div>
+      </div>
+
+      <!-- Right column: Follow-ups → Incidents → Process Ownership -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card" id="card-slack">
+          <div class="card-hdr slack-hdr" id="hdr-slack" onclick="toggleCat('slack')">
+            <div class="card-title"><span>💬</span><span class="slack-t">Follow-ups</span><span class="chevron">▾</span></div>
+            <div class="badges"><span class="badge done-b" id="done-slack" style="display:none"></span><span class="badge slack-b" id="cnt-slack">0</span></div>
+          </div>
+          <div class="card-body" id="list-slack" ondragover="bodyDragOver(event,'slack')" ondragleave="bodyDragLeave(event,'slack')" ondrop="bodyDrop(event,'slack')"></div>
+        </div>
+        <div class="card" id="card-incidents">
+          <div class="card-hdr inc-hdr" id="hdr-incidents" onclick="toggleCat('incidents')">
+            <div class="card-title"><span>🔥</span><span class="inc-t">Incidents & Escalations</span><span class="chevron">▾</span></div>
+            <div class="badges"><span class="badge done-b" id="done-incidents" style="display:none"></span><span class="badge inc-b" id="cnt-incidents">0</span></div>
+          </div>
+          <div class="card-body" id="list-incidents" ondragover="bodyDragOver(event,'incidents')" ondragleave="bodyDragLeave(event,'incidents')" ondrop="bodyDrop(event,'incidents')"></div>
+        </div>
+        <!-- My Process Ownership: CLPSE + Split Role side by side -->
+        <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,.05);overflow:hidden">
+          <div style="background:#f1f5f9;border-bottom:1px solid #e2e8f0;padding:6px 14px 4px">
+            <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#6b7280">⚙️ My Process Ownership</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr">
+            <div class="card" style="border:none;border-radius:0;box-shadow:none;border-right:1px solid #e2e8f0">
+              <div class="card-hdr clpse-hdr" id="hdr-clpse" onclick="toggleCat('clpse')">
+                <div class="card-title"><span>🔵</span><span class="clpse-t">CLPSE</span><span class="chevron">▾</span></div>
+                <div class="badges"><span class="badge done-b" id="done-clpse" style="display:none"></span><span class="badge clpse-b" id="cnt-clpse">0</span></div>
               </div>
+              <div class="card-body" id="list-clpse" ondragover="bodyDragOver(event,'clpse')" ondragleave="bodyDragLeave(event,'clpse')" ondrop="bodyDrop(event,'clpse')"></div>
             </div>
-            <div id="capture-preview" style="display:none;font-size:12px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;margin-top:6px">↑ preview: <span id="capture-preview-text"></span></div>
-          </form>
-        </div>
-      </div>
-      <div class="card" id="card-personal">
-        <div class="card-hdr prs-hdr" id="hdr-personal" onclick="toggleCat('personal')">
-          <div class="card-title"><span>📝</span><span class="prs-t">My Personal Notes</span><span class="chevron">▾</span></div>
-          <div class="badges"><span class="badge done-b" id="done-personal" style="display:none"></span><span class="badge prs-b" id="cnt-personal">0</span></div>
-        </div>
-        <div class="card-body" id="list-personal" ondragover="bodyDragOver(event,'personal')" ondragleave="bodyDragLeave(event,'personal')" ondrop="bodyDrop(event,'personal')"></div>
-      </div>
-    </div>
-
-    <!-- Row 1: Tasks | Incidents & Escalations -->
-    <div id="row1" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:8px 20px 0">
-      <div class="card" id="card-tasks">
-        <div class="card-hdr tsk-hdr" id="hdr-tasks" onclick="toggleCat('tasks')">
-          <div class="card-title"><span>✅</span><span class="tsk-t">Tasks & Action Items</span><span class="chevron">▾</span></div>
-          <div class="badges"><span class="badge done-b" id="done-tasks" style="display:none"></span><span class="badge tsk-b" id="cnt-tasks">0</span></div>
-        </div>
-        <div class="card-body" id="list-tasks" ondragover="bodyDragOver(event,'tasks')" ondragleave="bodyDragLeave(event,'tasks')" ondrop="bodyDrop(event,'tasks')"></div>
-      </div>
-      <div class="card" id="card-incidents">
-        <div class="card-hdr inc-hdr" id="hdr-incidents" onclick="toggleCat('incidents')">
-          <div class="card-title"><span>🔥</span><span class="inc-t">Incidents & Escalations</span><span class="chevron">▾</span></div>
-          <div class="badges"><span class="badge done-b" id="done-incidents" style="display:none"></span><span class="badge inc-b" id="cnt-incidents">0</span></div>
-        </div>
-        <div class="card-body" id="list-incidents" ondragover="bodyDragOver(event,'incidents')" ondragleave="bodyDragLeave(event,'incidents')" ondrop="bodyDrop(event,'incidents')"></div>
-      </div>
-    </div>
-
-    <!-- Row 2: Projects + My Process Ownership -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:8px 20px 0">
-      <div class="card">
-        <div class="card-hdr prj-hdr" id="hdr-projects" onclick="toggleCat('projects')">
-          <div class="card-title"><span>🏗️</span><span class="prj-t">Projects & Initiatives</span><span class="chevron">▾</span></div>
-          <div class="badges"><span class="badge done-b" id="done-projects" style="display:none"></span><span class="badge prj-b" id="cnt-projects">0</span></div>
-        </div>
-        <div class="card-body" id="list-projects" ondragover="bodyDragOver(event,'projects')" ondragleave="bodyDragLeave(event,'projects')" ondrop="bodyDrop(event,'projects')"></div>
-      </div>
-      <!-- My Process Ownership: CLPSE + Split Role side by side -->
-      <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,.05);overflow:hidden">
-        <div style="background:#f1f5f9;border-bottom:1px solid #e2e8f0;padding:6px 14px 4px">
-          <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#6b7280">⚙️ My Process Ownership</span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr">
-          <div class="card" style="border:none;border-radius:0;box-shadow:none;border-right:1px solid #e2e8f0">
-            <div class="card-hdr clpse-hdr" id="hdr-clpse" onclick="toggleCat('clpse')">
-              <div class="card-title"><span>🔵</span><span class="clpse-t">CLPSE</span><span class="chevron">▾</span></div>
-              <div class="badges"><span class="badge done-b" id="done-clpse" style="display:none"></span><span class="badge clpse-b" id="cnt-clpse">0</span></div>
+            <div class="card" style="border:none;border-radius:0;box-shadow:none">
+              <div class="card-hdr split-hdr" id="hdr-splitrole" onclick="toggleCat('splitrole')">
+                <div class="card-title"><span>🟡</span><span class="split-t">Split Role</span><span class="chevron">▾</span></div>
+                <div class="badges"><span class="badge done-b" id="done-splitrole" style="display:none"></span><span class="badge split-b" id="cnt-splitrole">0</span></div>
+              </div>
+              <div class="card-body" id="list-splitrole" ondragover="bodyDragOver(event,'splitrole')" ondragleave="bodyDragLeave(event,'splitrole')" ondrop="bodyDrop(event,'splitrole')"></div>
             </div>
-            <div class="card-body" id="list-clpse" ondragover="bodyDragOver(event,'clpse')" ondragleave="bodyDragLeave(event,'clpse')" ondrop="bodyDrop(event,'clpse')"></div>
-          </div>
-          <div class="card" style="border:none;border-radius:0;box-shadow:none">
-            <div class="card-hdr split-hdr" id="hdr-splitrole" onclick="toggleCat('splitrole')">
-              <div class="card-title"><span>🟡</span><span class="split-t">Split Role</span><span class="chevron">▾</span></div>
-              <div class="badges"><span class="badge done-b" id="done-splitrole" style="display:none"></span><span class="badge split-b" id="cnt-splitrole">0</span></div>
-            </div>
-            <div class="card-body" id="list-splitrole" ondragover="bodyDragOver(event,'splitrole')" ondragleave="bodyDragLeave(event,'splitrole')" ondrop="bodyDrop(event,'splitrole')"></div>
           </div>
         </div>
       </div>
+
     </div>
 
-    <!-- Row 3: Follow-ups | Keep Watch - Monitoring -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:8px 20px 16px">
-      <div class="card" id="card-slack">
-        <div class="card-hdr slack-hdr" id="hdr-slack" onclick="toggleCat('slack')">
-          <div class="card-title"><span>💬</span><span class="slack-t">Follow-ups</span><span class="chevron">▾</span></div>
-          <div class="badges"><span class="badge done-b" id="done-slack" style="display:none"></span><span class="badge slack-b" id="cnt-slack">0</span></div>
-        </div>
-        <div class="card-body" id="list-slack" ondragover="bodyDragOver(event,'slack')" ondragleave="bodyDragLeave(event,'slack')" ondrop="bodyDrop(event,'slack')"></div>
-      </div>
+    <!-- Row 3: Keep Watch - Monitoring (full width) -->
+    <div style="padding:8px 20px 16px">
       <div class="card" id="card-live">
         <div class="card-hdr lv-hdr" id="hdr-live" onclick="toggleLive()">
           <div class="card-title"><span>👀</span><span class="lv-t">Keep Watch - Monitoring</span><span class="chevron" id="chevron-live">▾</span></div>
@@ -313,6 +289,39 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
     <div class="type-tabs" id="type-tabs"></div>
     <div class="res-grid" id="res-grid"></div>
+  </div>
+</div>
+
+<!-- Quick Capture Modal -->
+<div class="overlay" id="qc-modal" style="display:none" onclick="if(event.target===this)closeQuickCapture()">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-hdr" style="padding:20px 24px">
+      <div>
+        <div style="font-size:18px;font-weight:700">⚡ Quick Capture</div>
+        <div style="font-size:13px;color:#64748b;margin-top:3px">Jot it down — we'll sort it out</div>
+      </div>
+      <button class="ico-btn" onclick="closeQuickCapture()" style="font-size:22px;opacity:.6">×</button>
+    </div>
+    <div class="modal-body" style="padding:24px">
+      <form onsubmit="addNoteFromQC(event)">
+        <textarea class="inp" id="qc-inp" placeholder="What's on your mind? (Enter to add, ⌘↵ for new line)" autocomplete="off" rows="6" onpaste="handlePasteWithLinks(event,'qc-inp')" onkeydown="captureKeydown(event,'qc-inp')" oninput="autoResizeTA(this);updateQCPreview()" style="width:100%;resize:none;overflow:hidden;line-height:1.6;min-height:160px;box-sizing:border-box;font-size:14px"></textarea>
+        <div id="qc-preview" style="display:none;font-size:13px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;margin-top:10px;margin-bottom:4px">↑ preview: <span id="qc-preview-text"></span></div>
+
+        <div style="display:flex;gap:12px;align-items:center;margin-top:18px">
+          <select class="sel" id="qc-cat-sel" style="flex:1;padding:11px 14px;font-size:14px" onchange="if(this.value!=='auto')expandCat(this.value)">
+            <option value="auto">✨ Auto-detect category</option>
+            <option value="incidents">🔥 Incidents & Escalations</option>
+            <option value="tasks">✅ Tasks & Action Items</option>
+            <option value="projects">🏗️ Projects & Initiatives</option>
+            <option value="clpse">🔵 CLPSE</option>
+            <option value="splitrole">🟡 Split Role</option>
+            <option value="slack">💬 Follow-ups</option>
+            <option value="personal">📝 Personal Notes</option>
+          </select>
+          <button type="submit" class="btn btn-primary" style="padding:11px 32px;font-size:15px;border-radius:8px;white-space:nowrap;box-shadow:0 2px 8px rgba(99,102,241,.3)">Add Note</button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 
@@ -457,6 +466,11 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); undoApp(); }
     if ((e.key === 'z' && e.shiftKey) || e.key === 'y') { e.preventDefault(); redoApp(); }
   }
+  // Escape closes Quick Capture modal
+  if (e.key === 'Escape') {
+    const qcModal = document.getElementById('qc-modal');
+    if (qcModal && qcModal.style.display !== 'none') closeQuickCapture();
+  }
 });
 // Collapse state for all sections (toggle on header click)
 let collapsed = { incidents: false, tasks: false, projects: false, clpse: false, splitrole: false, personal: false, slack: false };
@@ -593,28 +607,32 @@ function autoCat(t){
 }
 
 // ─── Persistence via Google Apps Script ───────────────────────────────────────
+function _bootUI(data) {
+  document.getElementById('loader').style.display='none';
+  document.getElementById('main-ui').style.display='block';
+  if(data && data.notes){
+    state.notes=data.notes;
+    state.live=data.live||[];
+  }
+  // Ensure all categories always exist (handles old saved data missing newer cats)
+  // Migrate old meetings → clpse if needed
+  if(state.notes.meetings && !state.notes.clpse){state.notes.clpse=state.notes.meetings;delete state.notes.meetings;}
+  ['incidents','tasks','projects','clpse','splitrole','personal','slack'].forEach(c=>{
+    if(!state.notes[c]) state.notes[c]=[];
+  });
+  renderAll();
+}
 function loadFromServer(){
+  // Running locally (file://) or outside Apps Script — use seed data immediately
+  if(typeof google === 'undefined' || !google.script){
+    _bootUI(null);
+    return;
+  }
   google.script.run
-    .withSuccessHandler(data=>{
-      document.getElementById('loader').style.display='none';
-      document.getElementById('main-ui').style.display='block';
-      if(data && data.notes){
-        state.notes=data.notes;
-        state.live=data.live||[];
-      }
-      // Ensure all categories always exist (handles old saved data missing newer cats)
-      // Migrate old meetings → clpse if needed
-      if(state.notes.meetings && !state.notes.clpse){state.notes.clpse=state.notes.meetings;delete state.notes.meetings;}
-      ['incidents','tasks','projects','clpse','splitrole','personal','slack'].forEach(c=>{
-        if(!state.notes[c]) state.notes[c]=[];
-      });
-      renderAll();
-    })
+    .withSuccessHandler(data=>{ _bootUI(data); })
     .withFailureHandler(err=>{
       console.error('Load failed:',err);
-      document.getElementById('loader').style.display='none';
-      document.getElementById('main-ui').style.display='block';
-      renderAll();
+      _bootUI(null);
       toast('⚠️ Using local data — server sync unavailable');
     })
     .loadNotes();
@@ -622,6 +640,8 @@ function loadFromServer(){
 
 function scheduleSave(){
   pushHistory(); // snapshot for undo/redo before every save
+  // If running locally outside Apps Script, skip server save
+  if(typeof google === 'undefined' || !google.script){ setStatus('','Local'); return; }
   setStatus('saving','Saving…');
   clearTimeout(saveTimer);
   saveTimer=setTimeout(()=>{
@@ -853,6 +873,7 @@ function pinLiveNote(id) {
   if (!confirm('Pin "' + entry.text.substring(0, 60) + '…" to Pinned Notes?')) return;
   state.live = state.live.filter(e => e.id !== id);
   editingId=null;scheduleSave();renderLive();
+  if(typeof google === 'undefined' || !google.script){ toast('📌 Pinned locally'); return; }
   google.script.run
     .withSuccessHandler(r => {
       if (r && r.success) {
@@ -908,9 +929,15 @@ function updateCounts(){
   ['incidents','tasks','projects','clpse','splitrole','personal','slack'].forEach(cat=>{
     const list=state.notes[cat]||[];
     const done=list.filter(n=>n.done).length;
-    document.getElementById('cnt-'+cat).textContent=list.length;
+    const el=document.getElementById('cnt-'+cat);
+    if(done>0){
+      el.innerHTML=`<span style="font-size:11px;font-weight:800">${list.length}</span><span style="font-size:9px;font-weight:600;opacity:.6"> · ✓${done}</span>`;
+    } else {
+      el.innerHTML=`<span style="font-size:11px;font-weight:800">${list.length}</span>`;
+    }
+    // Hide the old separate done badge — now merged into cnt badge
     const d=document.getElementById('done-'+cat);
-    if(done>0){d.textContent='✓ '+done;d.style.display='inline';}else d.style.display='none';
+    if(d) d.style.display='none';
     total+=list.length;
   });
   document.getElementById('count-pill').textContent=total+' note'+(total!==1?'s':'');
@@ -1038,6 +1065,7 @@ function captureKeydown(e,inputId){
       // Enter = submit
       e.preventDefault();
       if(inputId==='note-inp') addNote(e);
+      else if(inputId==='qc-inp') addNoteFromQC(e);
       else if(inputId==='live-inp') addLive();
     }
   }
@@ -1174,13 +1202,14 @@ function _buildSyncSections(){
   const out = [];
   const addIfHas = (label, notes) => { if (notes && notes.length) out.push({label, notes}); };
   const addAlways = (label, notes) => out.push({label, notes: notes || []});
+  // Order matches the app layout top-to-bottom
+  addIfHas('My Personal Notes:', state.notes.personal);
+  addAlways('Follow-ups:', state.notes.slack);
+  addIfHas('Tasks & Action Items:', state.notes.tasks);
   addIfHas('Incidents & Escalations:', state.notes.incidents);
-  addIfHas('My Work:', state.notes.tasks);
   addIfHas('Projects & Initiatives:', state.notes.projects);
-  addAlways('Follow-ups:', state.notes.slack);          // always include, even if empty
   addIfHas('CLPSE:', state.notes.clpse);
   addIfHas('Split Role:', state.notes.splitrole);
-  addIfHas('My Personal Notes:', state.notes.personal);
   return out;
 }
 
@@ -1268,6 +1297,7 @@ function copySync(){
 
 function pushToDoc(){
   const btn=document.getElementById('push-btn');
+  if(typeof google === 'undefined' || !google.script){ toast('⚠️ Push to Doc only works from the deployed Apps Script URL'); return; }
   btn.textContent='Pushing…';btn.disabled=true;
   google.script.run
     .withSuccessHandler(r=>{
@@ -1325,6 +1355,7 @@ function pinNote(cat, id) {
   renderAll();
 
   // Write to doc's PINNED section
+  if(typeof google === 'undefined' || !google.script){ toast('📌 Pinned locally'); return; }
   google.script.run
     .withSuccessHandler(r => {
       if (r && r.success) {
@@ -1350,6 +1381,12 @@ function loadPinnedNotes() {
   document.getElementById('pinned-loading').style.display = 'flex';
   document.getElementById('pinned-grid').style.display = 'none';
 
+  if(typeof google === 'undefined' || !google.script){
+    document.getElementById('pinned-loading').style.display = 'none';
+    document.getElementById('pinned-grid').style.display = 'grid';
+    document.getElementById('pinned-grid').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#94a3b8;padding:40px">Pinned notes load from Google Doc — open via Apps Script URL to use this feature.</div>';
+    return;
+  }
   google.script.run
     .withSuccessHandler(result => {
       document.getElementById('pinned-loading').style.display = 'none';
@@ -1765,6 +1802,48 @@ function updateCapturePreview() {
     box.style.display = 'none';
   }
 }
+// ─── Quick Capture Modal ──────────────────────────────────────────────────────
+function openQuickCapture() {
+  document.getElementById('qc-modal').style.display = 'flex';
+  setTimeout(() => { const ta = document.getElementById('qc-inp'); if(ta) ta.focus(); }, 50);
+}
+function closeQuickCapture() {
+  document.getElementById('qc-modal').style.display = 'none';
+  const inp = document.getElementById('qc-inp');
+  if(inp) { inp.value = ''; inp.style.height = 'auto'; }
+  const cat = document.getElementById('qc-cat-sel');
+  if(cat) cat.value = 'auto';
+  const box = document.getElementById('qc-preview');
+  if(box) box.style.display = 'none';
+}
+function addNoteFromQC(e) {
+  e.preventDefault();
+  const inp = document.getElementById('qc-inp');
+  const txt = inp.value.trim(); if(!txt) return;
+  const sel = document.getElementById('qc-cat-sel').value;
+  const cat = sel === 'auto' ? autoCat(txt) : sel;
+  const note = {id:'n'+Date.now(), text:txt, detail:'', done:false, source:'', ts:Date.now()};
+  state.notes[cat].unshift(note);
+  expandCat(cat);
+  scheduleSave();
+  renderCat(cat); updateCounts();
+  const labels = {incidents:'🔥 Incidents',tasks:'✅ Tasks',projects:'🏗️ Projects',clpse:'🔵 CLPSE',splitrole:'🟡 Split Role',personal:'📝 Personal Notes',slack:'💬 Follow-ups'};
+  toast('Added to ' + labels[cat]);
+  closeQuickCapture();
+}
+function updateQCPreview() {
+  const ta  = document.getElementById('qc-inp');
+  const box = document.getElementById('qc-preview');
+  const txt = document.getElementById('qc-preview-text');
+  if (!ta || !box || !txt) return;
+  if (ta.value.trim()) {
+    txt.innerHTML = linkify(ta.value);
+    box.style.display = 'block';
+  } else {
+    box.style.display = 'none';
+  }
+}
+
 function updateLivePreview() {
   const ta  = document.getElementById('live-inp');
   const box = document.getElementById('live-preview');

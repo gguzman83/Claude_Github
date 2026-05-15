@@ -1,8 +1,8 @@
 # My Daily Notes App — Backup
 
-**Backed up:** 2026-05-13  
+**Backed up:** 2026-05-15  
 **Source:** /Users/gguzman/Documents/Claude/Claude_Github (local git clone)  
-**Latest commit:** dd9da14 — Fix: show '1. N/A' in sync preview for empty sections
+**Latest changes:** Quick Capture preview fix (shows for any text), layout restructured to independent flex columns so minimizing a section pulls the one below it up
 
 ## Files
 
