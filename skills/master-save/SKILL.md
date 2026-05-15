@@ -76,9 +76,38 @@ self-contained restore bundle. save-master-reference-doc versions the environmen
 
 ---
 
-## Step 4 — Report the full save summary
+## Step 4 — Update Claude_Inventory.md
 
-After all applicable skills have run, give Guillermo one clean summary:
+After the autosave skills have run, update the inventory file to reflect anything new from
+this session. This file lives in two places — keep both in sync:
+- `~/Documents/Claude/Claude_Inventory.md` (workspace)
+- `~/Documents/Claude/Claude_Github/Claude_Inventory.md` (repo)
+
+**What to update:**
+
+| If this session had... | Update this section |
+|---|---|
+| New skill installed | Add a row to the appropriate Skills table |
+| Skill removed or renamed | Remove or update that row |
+| New project created | Add a row to Projects |
+| New artifact created | Add a row to Artifacts |
+| New Cowork backup added | Add a row to Cowork Backups |
+| New key link or config | Add to Key Links |
+
+**How to update:**
+1. Read the current `Claude_Inventory.md` from the workspace
+2. Add/update only the rows that changed — don't rewrite the whole file
+3. Update the `Last updated:` date at the top to today
+4. Write the updated file back to both locations using the Edit tool
+
+Keep entries concise — one line per item, matching the format already in the file.
+If nothing new was added this session, skip this step.
+
+---
+
+## Step 5 — Report the full save summary
+
+After all applicable skills have run and the inventory is updated, give Guillermo one clean summary:
 
 ```
 ✅ Master Save complete
@@ -87,6 +116,7 @@ What ran:
 • github-autosave — [N] files pushed to GitHub
 • cowork-backup — [project/skill name] backed up to Cowork_Backups
 • save-master-reference-doc — Master Reference updated to v[N]
+• Claude_Inventory.md — updated ([what changed])
 
 Nothing ran for: [any skills that didn't apply and why]
 ```
