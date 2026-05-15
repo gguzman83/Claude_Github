@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Care Launch Clpse Tracker",
+  "schemaVersion": 1,
+  "description": "Live Care Launch CLPSE In Progress tracker — pulls from Smartsheet filtered to CLPSE Project Status = \"In Progress\", shows CLPSE name, Request Name, Created Date, Expected Launch Date, Latest Comment, and flags overdue items. Has a \"Send Update Request to Slack\" button that composes and sends a formatted message to #t4i-clpse-carelaunch (C05E9TRFC8K) asking CLPSEs for updates, reminding completed ones to fill out their SOP, and requesting everyone ACK the message.",
+  "mcpTools": [
+    "mcp__aab8ef50-5bd3-4d06-bb8c-e8bbcfccadbc__get_sheet_summary",
+    "mcp__5bb57945-e88b-477f-b809-be9c74056e5c__slack_send_message",
+    "mcp__5bb57945-e88b-477f-b809-be9c74056e5c__slack_search_users"
+  ],
+  "mcpServerNames": [
+    "Smartsheet",
+    "Slack",
+    "Slack"
+  ]
+}
+</script>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Care Launch – CLPSE In Progress Tracker</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs@5.0.2/dist/theme/mermaid.min.css" integrity="sha384-FNMqEEBpGLe9Ku61+qSXGkOKVoTsW7XFiANWO8v+7jwCFVbTCt2b4KkDXqhEmNpw" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/gridjs@5.0.2/dist/gridjs.umd.js" integrity="sha384-/XXDzxe4FsGiAe50i/u9pY/Vy/uX654MHB1xoc1BJNnH1WXHhqHga9g3q5tF4gj7" crossorigin="anonymous"></script>
+  <style>
+    :root { color-scheme: light; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f4f5f7;
+      color: #172b4d;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .header-left h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #0052cc;
+      line-height: 1.2;
+    }
+    .header-left p {
+      font-size: 12px;
+      color: #6b778c;
+      margin-top: 3px;
+    }
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-outline {
+      background: #fff;
+      color: #344563;
+      border: 1.5px solid #dfe1e6;
+    }
+    .btn-outline:hover:not(:disabled) { background: #f4f5f7; border-color: #b3bac5; }
+    .btn-slack {
+      background: #4a154b;
+      color: #fff;
+    }
+    .btn-slack:hover:not(:disabled) { background: #611f69; }
+    .btn-primary {
+      background: #0052cc;
+      color: #fff;
+    }
+    .btn-primary:hover:not(:disabled) { background: #0747a6; }
+    .btn-danger {
+      background: #de350b;
+      color: #fff;
+    }
+    .btn-danger:hover:not(:disabled) { background: #bf2600; }
+    .btn-ghost {
+      background: transparent;
+      color: #6b778c;
+      border: 1.5px solid #dfe1e6;
+    }
+    .btn-ghost:hover:not(:disabled) { background: #f4f5f7; }
+
+    /* ── Stats bar ── */
+    .stats-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      background: #fff;
+      border: 1px solid #dfe1e6;
+      border-radius: 8px;
+      padding: 12px 18px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: #42526e;
+    }
+    .stat {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .stat-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: #172b4d;
+      line-height: 1;
+    }
+    .stat-label { color: #6b778c; font-size: 12px; }
+    .stat-overdue .stat-value { color: #de350b; }
+    .stat-sep { width: 1px; height: 28px; background: #dfe1e6; }
+    .last-refreshed { margin-left: auto; font-size: 11px; color: #97a0af; }
+
+    /* ── Loading / Error states ── */
+    .state-box {
+      background: #fff;
+      border: 1px solid #dfe1e6;
+      border-radius: 8px;
+      padding: 40px 24px;
+      text-align: center;
+      color: #6b778c;
+      font-size: 14px;
+    }
+    .state-box .icon { font-size: 32px; margin-bottom: 10px; }
+    .state-box.error { border-color: #ff8f73; background: #fff5f3; color: #bf2600; }
+
+    /* ── Grid overrides ── */
+    #table-container {
+      background: #fff;
+      border: 1px solid #dfe1e6;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .gridjs-wrapper { border: none !important; border-radius: 0 !important; }
+    .gridjs-table { width: 100% !important; }
+    th.gridjs-th {
+      background: #f4f5f7 !important;
+      color: #5e6c84 !important;
+      font-size: 11px !important;
+      font-weight: 700 !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.06em !important;
+      padding: 10px 14px !important;
+    }
+    td.gridjs-td { padding: 11px 14px !important; font-size: 13px !important; vertical-align: middle !important; }
+    tr.gridjs-tr:hover td { background: #f8f9ff !important; }
+    .gridjs-search { padding: 10px 14px !important; background: #f4f5f7; }
+    .gridjs-search-input {
+      border: 1.5px solid #dfe1e6 !important;
+      border-radius: 5px !important;
+      padding: 6px 10px !important;
+      font-size: 13px !important;
+      background: #fff !important;
+    }
+
+    /* Row badges */
+    .badge-clpse {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #e6f0ff;
+      color: #0052cc;
+      white-space: nowrap;
+    }
+    .badge-overdue {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #ffebe6;
+      color: #de350b;
+      margin-left: 5px;
+    }
+    .comment-cell {
+      max-width: 260px;
+      color: #6b778c;
+      font-style: italic;
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .no-comment { color: #c1c7d0; }
+
+    /* ── Slack preview panel ── */
+    #slack-panel {
+      display: none;
+      background: #fff;
+      border: 1.5px solid #4a154b;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    #slack-panel h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #4a154b;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    #slack-panel .channel-tag {
+      background: #f1e8f5;
+      color: #4a154b;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    #message-preview {
+      background: #f8f9fa;
+      border: 1px solid #dfe1e6;
+      border-radius: 6px;
+      padding: 14px;
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: inherit;
+      color: #172b4d;
+      max-height: 320px;
+      overflow-y: auto;
+      margin-bottom: 14px;
+    }
+    .panel-actions { display: flex; gap: 10px; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.25s ease;
+      pointer-events: none;
+      z-index: 999;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.success { background: #00875a; }
+    #toast.error { background: #de350b; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <h1>🚀 Care Launch — CLPSE In Progress Tracker</h1>
+      <p>Live view from Smartsheet · (Form Response) Care Launch Requests</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline" id="refresh-btn">↻ Refresh</button>
+      <button class="btn btn-slack" id="send-slack-btn" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></svg>
+        Send Update Request to Slack
+      </button>
+    </div>
+  </div>
+
+  <!-- Stats bar -->
+  <div class="stats-bar" id="stats-bar">
+    <div class="state-box" style="width:100%;padding:12px;border:none;background:transparent;">
+      <div class="icon">⏳</div>
+      Loading Care Launch data…
+    </div>
+  </div>
+
+  <!-- Slack preview panel -->
+  <div id="slack-panel">
+    <h3>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="#4a154b"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52z"/><path d="M6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z"/><path d="M8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834z"/><path d="M8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312z"/><path d="M18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834z"/><path d="M17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312z"/><path d="M15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52z"/><path d="M15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></svg>
+      Message Preview &nbsp;→&nbsp; <span class="channel-tag">#t4i-clpse-carelaunch</span>
+    </h3>
+    <pre id="message-preview"></pre>
+    <div class="panel-actions">
+      <button class="btn btn-slack" id="confirm-send-btn">✅ Confirm &amp; Send</button>
+      <button class="btn btn-ghost" id="cancel-send-btn">✕ Cancel</button>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div id="table-container">
+    <div class="state-box"><div class="icon">📋</div>Waiting for data…</div>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="toast"></div>
+
+  <script>
+    let projects = [];
+    let gridInstance = null;
+    const TODAY = new Date();
+    TODAY.setHours(0, 0, 0, 0);
+
+    // ── Known CLPSE Slack IDs (hardcoded + dynamic fallback) ──
+    const CLPSE_IDS = {
+      'Michael Arlegui': 'W8FL2SQAE',
+      'Cory Leeson':     'W8FJ0CQSF',
+      'Josh Strong':     'U02KJCLBBSR',
+      'Rodney Webb':     'U032MRPSNTE',
+      'James Badia':     'WT586QETZ',
+      'Konner Vernon':   'U02QNV1DN77',
+      'Archana Pratap':  'W91DGG5ST',
+      'Mo Hamilton':     'WH412TAHH'
+    };
+    const _resolvedCache = { ...CLPSE_IDS };
+
+    // Returns "<@USERID>" if found, otherwise the plain name
+    async function slackMention(name) {
+      if (!name) return 'Unassigned';
+      if (_resolvedCache[name]) return `<@${_resolvedCache[name]}>`;
+      // Dynamic lookup for any new CLPSEs not in the hardcoded map
+      try {
+        const res = await window.cowork.callMcpTool(
+          'mcp__5bb57945-e88b-477f-b809-be9c74056e5c__slack_search_users',
+          { query: name, response_format: 'concise' }
+        );
+        const match = res.match(/\b([A-Z][A-Z0-9]{5,})\b/);
+        if (match) {
+          _resolvedCache[name] = match[1];
+          return `<@${match[1]}>`;
+        }
+      } catch (_) {}
+      return name; // fallback to plain name
+    }
+
+    // ── Helpers ──────────────────────────────────────────────
+    function formatDate(d) {
+      if (!d) return '—';
+      const dt = new Date(d);
+      if (isNaN(dt)) return d;
+      return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function isOverdue(d) {
+      if (!d) return false;
+      const dt = new Date(d);
+      return !isNaN(dt) && dt < TODAY;
+    }
+
+    function showToast(msg, type = 'success') {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = `show ${type}`;
+      setTimeout(() => { t.className = ''; }, 3500);
+    }
+
+    // ── Master extractor — handles every format callMcpTool might return ──
+    function extractProjects(raw) {
+      // 1. Already a JS object with a rows array?
+      if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+        const rowsArr = raw.rows ?? raw.data?.rows ?? null;
+        if (Array.isArray(rowsArr)) return extractFromRowsArray(rowsArr);
+        // Maybe it's a JSON-encoded string inside a result key
+        const str = raw.result ?? raw.content ?? raw.text ?? raw.data;
+        if (typeof str === 'string') return parseSmartsheetRows(str);
+        // Last resort: stringify and try text parsing
+        try { return parseSmartsheetRows(JSON.stringify(raw, null, 2)); } catch(_) { return []; }
+      }
+      // 2. Plain string (the YAML-ish format we saw in chat)
+      if (typeof raw === 'string') return parseSmartsheetRows(raw);
+      return [];
+    }
+
+    // Parses structured JS rows array (when callMcpTool returns a parsed object)
+    function extractFromRowsArray(rows) {
+      return rows.map(row => {
+        const cells = row.cells ?? [];
+        const get = (name) => {
+          const cell = cells.find(c => c.column_name === name || c.columnName === name || c.title === name);
+          return cell ? (cell.value ?? cell.displayValue ?? null) : null;
+        };
+        const created = get('Created Date');
+        return {
+          requestName:        get('Request Name'),
+          createdDate:        created ? String(created).substring(0, 10) : null,
+          expectedLaunchDate: get('Expected Launch Date'),
+          assignedTo:         get('Assigned To (CLPSE)'),
+          latestComment:      get('Latest Comment')
+        };
+      }).filter(p => p.requestName);
+    }
+
+    // ── Smartsheet response parser ───────────────────────────
+    function parseSmartsheetRows(raw) {
+      const results = [];
+      let current = null;
+
+      for (const line of raw.split('\n')) {
+        // New row boundary
+        if (/^\s+-\s+row_id:/.test(line)) {
+          if (current && current.requestName) results.push(current);
+          current = { requestName: null, createdDate: null, expectedLaunchDate: null, assignedTo: null, latestComment: null };
+          continue;
+        }
+        if (!current) continue;
+
+        // Cell lines are tab-separated: "      Column Name\tvalue\tTYPE"
+        const tabIdx = line.indexOf('\t');
+        if (tabIdx === -1) continue;
+
+        const colName = line.slice(0, tabIdx).trim();
+        // Value is everything between first and last tab on the line
+        const rest = line.slice(tabIdx + 1);
+        const lastTab = rest.lastIndexOf('\t');
+        const rawVal = lastTab > -1 ? rest.slice(0, lastTab) : rest;
+        const value  = rawVal.trim().replace(/^"/, '').replace(/"$/, '');
+
+        switch (colName) {
+          case 'Request Name':         current.requestName        = value || null; break;
+          case 'Created Date':         current.createdDate        = value ? value.substring(0, 10) : null; break;
+          case 'Expected Launch Date': current.expectedLaunchDate = value || null; break;
+          case 'Assigned To (CLPSE)':  current.assignedTo         = value || null; break;
+          case 'Latest Comment':       current.latestComment      = value || null; break;
+        }
+      }
+      if (current && current.requestName) results.push(current);
+      return results;
+    }
+
+    // ── Data loading ─────────────────────────────────────────
+    async function loadData() {
+      const statsBar = document.getElementById('stats-bar');
+      const tableDiv = document.getElementById('table-container');
+      const sendBtn  = document.getElementById('send-slack-btn');
+      sendBtn.disabled = true;
+
+      statsBar.innerHTML = `<div style="width:100%;text-align:center;color:#6b778c;font-size:13px;padding:4px 0">⏳ Fetching Smartsheet data…</div>`;
+      tableDiv.innerHTML = `<div class="state-box"><div class="icon">⏳</div>Loading…</div>`;
+
+      try {
+        const raw = await window.cowork.callMcpTool(
+          'mcp__aab8ef50-5bd3-4d06-bb8c-e8bbcfccadbc__get_sheet_summary',
+          {
+            sheet_id: 1794904029456260,
+            filters: [{ column_name: 'CLPSE Project Status', column_value: 'In Progress', operator: 'EQUAL' }],
+            columns: ['Request Name', 'Created Date', 'Expected Launch Date', 'Assigned To (CLPSE)', 'Latest Comment', 'CLPSE Project Status']
+          }
+        );
+
+        // ── Normalize raw: handle string, object, or wrapped object ──
+        projects = extractProjects(raw);
+        console.log('[CareLaunch] raw type:', typeof raw, '| projects found:', projects.length);
+
+        if (projects.length === 0) {
+          // Show exactly what came back so we can debug
+          let preview;
+          try { preview = typeof raw === 'string' ? raw.slice(0, 800) : JSON.stringify(raw, null, 2).slice(0, 800); }
+          catch(_) { preview = String(raw).slice(0, 800); }
+          tableDiv.innerHTML = `<div class="state-box error">
+            <div class="icon">🔍</div>
+            <strong>Parser found 0 rows.</strong> Raw response:<br><br>
+            <code style="font-size:11px;white-space:pre-wrap;text-align:left;display:block;background:#fff;padding:8px;border-radius:4px;max-height:220px;overflow:auto">${preview.replace(/</g,'&lt;')}</code>
+          </div>`;
+          statsBar.innerHTML = '';
+          return;
+        }
+        renderStats();
+        renderTable();
+        sendBtn.disabled = false;
+
+      } catch (err) {
+        statsBar.innerHTML = '';
+        tableDiv.innerHTML = `<div class="state-box error"><div class="icon">⚠️</div>Error loading data: ${err.message || err}</div>`;
+      }
+    }
+
+    // ── Stats ────────────────────────────────────────────────
+    function renderStats() {
+      const overdue = projects.filter(p => isOverdue(p.expectedLaunchDate)).length;
+      const unique   = [...new Set(projects.map(p => p.assignedTo).filter(Boolean))].length;
+      const now      = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+      document.getElementById('stats-bar').innerHTML = `
+        <div class="stat">
+          <span class="stat-value">${projects.length}</span>
+          <span class="stat-label">In Progress</span>
+        </div>
+        <div class="stat-sep"></div>
+        <div class="stat ${overdue > 0 ? 'stat-overdue' : ''}">
+          <span class="stat-value">${overdue}</span>
+          <span class="stat-label">Overdue</span>
+        </div>
+        <div class="stat-sep"></div>
+        <div class="stat">
+          <span class="stat-value">${unique}</span>
+          <span class="stat-label">CLPSEs Assigned</span>
+        </div>
+        <span class="last-refreshed">Refreshed ${now}</span>
+      `;
+    }
+
+    // ── Table ────────────────────────────────────────────────
+    function renderTable() {
+      const container = document.getElementById('table-container');
+      container.innerHTML = '';
+
+      if (!projects.length) {
+        container.innerHTML = `<div class="state-box"><div class="icon">🎉</div>No "In Progress" projects found!</div>`;
+        return;
+      }
+
+      gridInstance = new gridjs.Grid({
+        columns: [
+          { name: 'CLPSE', width: '145px' },
+          { name: 'Request Name', width: '240px' },
+          { name: 'Created', width: '110px' },
+          { name: 'Expected Launch', width: '128px' },
+          { name: 'Latest Comment', width: '290px' }
+        ],
+        data: projects.map(p => {
+          const od = isOverdue(p.expectedLaunchDate);
+          const clpseCell = gridjs.html(
+            `<span class="badge-clpse">${p.assignedTo || '—'}</span>`
+          );
+          const launchCell = gridjs.html(
+            `${formatDate(p.expectedLaunchDate)}${od ? '<span class="badge-overdue">OVERDUE</span>' : ''}`
+          );
+          const commentCell = gridjs.html(
+            p.latestComment
+              ? `<span class="comment-cell" title="${p.latestComment.replace(/"/g,'&quot;')}">${p.latestComment}</span>`
+              : `<span class="comment-cell no-comment">No comment</span>`
+          );
+          return [
+            clpseCell,
+            p.requestName,
+            formatDate(p.createdDate),
+            launchCell,
+            commentCell
+          ];
+        }),
+        sort: true,
+        search: { enabled: true, placeholder: 'Filter projects…' },
+        style: {
+          table: { 'border-collapse': 'collapse', width: '100%' },
+          th: { background: '#f4f5f7' }
+        },
+        language: { search: { placeholder: '🔍  Filter projects…' } }
+      });
+
+      gridInstance.render(container);
+    }
+
+    // ── Slack message builder ────────────────────────────────
+    async function buildSlackMessage() {
+      const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      const overdue = projects.filter(p => isOverdue(p.expectedLaunchDate));
+
+      // Resolve all mentions in parallel
+      const mentions = await Promise.all(projects.map(p => slackMention(p.assignedTo)));
+
+      const lines = projects.map((p, i) => {
+        const od = isOverdue(p.expectedLaunchDate) ? ' ⚠️ *OVERDUE*' : '';
+        return `• *${p.requestName}*${od}\n  ↳ CLPSE: ${mentions[i]} | Expected Launch: ${formatDate(p.expectedLaunchDate)}`;
+      }).join('\n');
+
+      const overdueNote = overdue.length > 0
+        ? `\n⚠️ *${overdue.length} project(s) are past their expected launch date* — please flag any blockers or provide a revised timeline.\n`
+        : '';
+
+      return `🔔 *Care Launch — CLPSE Project Update Request* | ${dateStr}
+
+Hey team 👋 Quick check-in on all active Care Launch projects. I need a status update from each of you on your assigned project(s).
+
+*Please do one of the following:*
+📝 *Still in progress?* → Reply in thread with your current status, any blockers, and an updated timeline if needed
+✅ *Project complete?* → Make sure your *Scope of Project (SOP)* document is filled out and submitted before closing out${overdueNote}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 *Active In-Progress Projects (${projects.length})*:
+
+${lines}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+👍 Please *ACK this message* by adding a ✅ reaction so I know you've seen it.
+
+Thank you for keeping things moving! 🙌
+— Guillermo (IT Manager, Techknow Bar)`;
+    }
+
+    // ── Event listeners ──────────────────────────────────────
+    document.getElementById('refresh-btn').addEventListener('click', loadData);
+
+    document.getElementById('send-slack-btn').addEventListener('click', async () => {
+      if (!projects.length) { showToast('No projects loaded — refresh first', 'error'); return; }
+      const btn = document.getElementById('send-slack-btn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Resolving @mentions…';
+      try {
+        const msg = await buildSlackMessage();
+        document.getElementById('message-preview').textContent = msg;
+        document.getElementById('slack-panel').style.display = 'block';
+        document.getElementById('slack-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></svg> Send Update Request to Slack`;
+      }
+    });
+
+    document.getElementById('cancel-send-btn').addEventListener('click', () => {
+      document.getElementById('slack-panel').style.display = 'none';
+    });
+
+    document.getElementById('confirm-send-btn').addEventListener('click', async () => {
+      const btn = document.getElementById('confirm-send-btn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Sending…';
+
+      try {
+        const msg = await buildSlackMessage();
+        await window.cowork.callMcpTool(
+          'mcp__5bb57945-e88b-477f-b809-be9c74056e5c__slack_send_message',
+          {
+            channel_id: 'C05E9TRFC8K',
+            text: msg
+          }
+        );
+
+        document.getElementById('slack-panel').style.display = 'none';
+        showToast('✅ Message sent to #t4i-clpse-carelaunch!', 'success');
+      } catch (err) {
+        showToast('❌ Send failed: ' + (err.message || err), 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '✅ Confirm & Send';
+      }
+    });
+
+    // ── Init ─────────────────────────────────────────────────
+    loadData();
+  </script>
+</body>
+</html>
