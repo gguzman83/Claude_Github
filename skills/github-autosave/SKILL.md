@@ -22,9 +22,9 @@ modified in this session and make sure it's saved to both GitHub and the workspa
 This skill uses the GitHub REST API with a pre-configured PAT. Set it at the start of every run:
 
 ```bash
-export GITHUB_PAT=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
-export GITHUB_REPO="gguzman83/Claude_Github"
-export GITHUB_API="https://api.github.com/repos/$GITHUB_REPO/contents"
+source ~/Documents/Claude/env.sh 2>/dev/null
+# env.sh sets GITHUB_PAT, GITHUB_REPO, GITHUB_API
+# Stored at ~/Documents/Claude/env.sh — never committed to GitHub
 ```
 
 Never write the PAT to any file or include it in commit messages.
@@ -176,8 +176,8 @@ To push to GitHub, run this in your terminal:
 cd /Users/gguzman/Documents/Claude/Claude_Github
 git add [list the specific new/changed files here]
 git commit -m "Github_Autosave: [describe what was saved] [YYYY-MM-DD]"
-git pull https://gguzman83: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@github.com/gguzman83/Claude_Github.git --rebase
-git push https://gguzman83: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@github.com/gguzman83/Claude_Github.git
+git pull https://gguzman83:$GITHUB_PAT@github.com/gguzman83/Claude_Github.git --rebase
+git push https://gguzman83:$GITHUB_PAT@github.com/gguzman83/Claude_Github.git
 ```
 
 Always list the exact files to `git add` so Guillermo doesn't have to figure it out.

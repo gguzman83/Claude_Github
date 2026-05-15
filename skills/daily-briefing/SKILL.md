@@ -46,60 +46,50 @@ Limit: 20 results. These are follow-ups he intentionally flagged for action.
 
 ## STEP 2 — Read the CLPSE Spotlight Tracker (Live Google Sheets)
 
-Use the **Google Drive MCP connector** to fetch the spreadsheet directly — it's authenticated and works without any public sharing:
-- **Tool**: `mcp__131eb709-f444-448c-baa2-6600a8158042__read_file_content`
-- **fileId**: `1HCgtlfpknaPxS_R72lmSStRO6Om4jJfFZfW7PoIjTbY`
+Fetch the live CLPSE Spotlight Tracker from Google Sheets:
+**URL**: `https://docs.google.com/spreadsheets/d/1HCgtlfpknaPxS_R72lmSStRO6Om4jJfFZfW7PoIjTbY/edit`
 
-The tool returns both tabs (Main Tracker + Archive) as a single markdown table string. After fetching, use Bash with Python to parse it:
+Use the `google_drive_fetch` MCP tool with the spreadsheet ID `1HCgtlfpknaPxS_R72lmSStRO6Om4jJfFZfW7PoIjTbY`.
+
+After fetching, use Bash with Python to parse the data and capture current PT time:
 
 ```python
-import re, pytz
+import pandas as pd, pytz, io
 from datetime import datetime
 
+# Current time
 pt = pytz.timezone('America/Los_Angeles')
 now = datetime.now(pt)
 print(f"Current time PT: {now.strftime('%I:%M %p PT')}")
 
-# content = the full string returned by read_file_content
-# Rows format: | Project | CLPSE | LOE | Project Status | Completion Date | ...
-wip = []
-on_hold = []
-fy26_complete = []
+# Parse sheets from google_drive_fetch content
+# Main_Tracker is sheet gid=0, Archive is the second sheet
+# Adjust based on the actual content format returned by google_drive_fetch
 
-for line in content.split('\n'):
-    cols = [c.strip() for c in line.split('|')]
-    cols = [c for c in cols if c]  # strip empty entries from leading/trailing |
-    if len(cols) >= 4 and cols[0] not in ('Project', ':-:', 'Award Amount'):
-        project, clpse = cols[0], cols[1]
-        status = cols[3].strip().lower()
-        if status == 'wip':
-            wip.append((project, clpse))
-        elif status == 'on hold':
-            on_hold.append((project, clpse))
-        elif status == 'complete' and len(cols) >= 5:
-            completion_date = cols[4].strip()
-            try:
-                if '/' in completion_date:
-                    parts = completion_date.split('/')
-                    if len(parts) == 3:
-                        m, d, y = int(parts[0]), int(parts[1]), int(parts[2])
-                        if y > 2025 or (y == 2025 and m >= 8):
-                            fy26_complete.append(project)
-                elif '2026' in completion_date:
-                    fy26_complete.append(project)
-                elif '2025' in completion_date:
-                    if re.search(r'(Aug|Sep|Oct|Nov|Dec)', completion_date, re.I):
-                        fy26_complete.append(project)
-            except:
-                pass
+main_clean = main.dropna(subset=['Project'])
+archive_clean = archive.dropna(subset=['Project'])
 
-print(f"Total Active: {len(wip)+len(on_hold)} | WIP: {len(wip)} | On Hold: {len(on_hold)} | Completed FY26: {len(fy26_complete)}")
-for p, c in wip: print(f"WIP: {p} | {c}")
-for p, c in on_hold: print(f"HOLD: {p} | {c}")
+# Stats
+wip = main_clean[main_clean['Project Status'].str.lower() == 'wip']
+on_hold = main_clean[main_clean['Project Status'].str.lower() == 'on hold']
+archive_clean['Completion Date'] = pd.to_datetime(archive_clean['Completion Date'], errors='coerce')
+fy26 = archive_clean[
+    (archive_clean['Proejct Status'].str.upper().str.strip() == 'COMPLETE') &
+    (archive_clean['Completion Date'] >= '2025-08-01')
+]
+print(f"Total Active: {len(main_clean)} | WIP: {len(wip)} | On Hold: {len(on_hold)} | Completed FY26: {len(fy26)}")
+for _, r in wip.iterrows(): print(f"WIP: {r['Project']} | {r['CLPSE']}")
+for _, r in on_hold.iterrows(): print(f"HOLD: {r['Project']} | {r['CLPSE']}")
 ```
 
-If the Drive MCP call fails, include in the briefing:
-⚠️ CLPSE data unavailable — Google Drive connector error. Check that the file is shared with the connected Google account.
+**Fallback**: If `google_drive_fetch` fails, try the CSV export URLs:
+- Main_Tracker: `https://docs.google.com/spreadsheets/d/1HCgtlfpknaPxS_R72lmSStRO6Om4jJfFZfW7PoIjTbY/export?format=csv&gid=0`
+- Archive: `https://docs.google.com/spreadsheets/d/1HCgtlfpknaPxS_R72lmSStRO6Om4jJfFZfW7PoIjTbY/export?format=csv&gid=1`
+
+Use `web_fetch` to download and parse them as CSV with pandas.
+
+If all fetch attempts fail, include in the briefing:
+⚠️ CLPSE data unavailable — could not access Google Sheets. Check sharing permissions.
 
 ---
 
@@ -118,9 +108,9 @@ For each **accepted** calendar event today (skip declined events):
 
 ### Prioritized To-Do List
 Classify each Gmail unread and Slack item:
-- **P1 — Urgent**: Direct questions needing response before noon, overdue items, anything blocking a colleague
-- **P2 — Action Today**: Items needing action today but not time-critical right now
-- **P3 — FYI**: Automated reports, notifications, no response needed
+- 🔴 **P1 — Urgent**: Direct questions needing response before noon, overdue items, anything blocking a colleague
+- 🟡 **P2 — Action Today**: Items needing action today but not time-critical right now
+- 🟢 **P3 — FYI**: Automated reports, notifications, no response needed
 
 For each item: [Source] Title, 1-2 sentence context, direct link. Omit any tier that has zero items.
 If current time is past noon, relabel P1 as "overdue — action ASAP" rather than "before noon."
@@ -169,34 +159,43 @@ Do NOT use markdown tables — Slack doesn't render them. Use plain line-by-line
 
 Each to-do item must have a blank line before the next one — this makes each item scannable at a glance. Each section header (P1/P2/P3) should have a blank line after it before the first item.
 
-**TITLE BOLDING** — Bold the source tag + title text up to (but NOT including) the — separator. Everything after the — is plain text. This visually separates the "what" from the "who/detail". Format: `*[Email] Subject Title* — remaining description or context label`
+**NUMBERING** — Items within each section are numbered sequentially starting at 1 (i.e., 1., 2., 3...). The number is NEVER replaced with the priority label. P1/P2/P3 labels only appear in the section headers, not in front of individual items.
+
+**SOURCE COLOR CODING** — Prefix every source tag with a colored emoji so Guillermo can visually scan by source type at a glance. Use these consistently with no space between the emoji and the bracket:
+- 🔵 for [Email]
+- 🟠 for [Calendar]
+- 🟣 for [Slack]
+- 🔴 for [Slack Later]
+- 🟡 for [SNOW] or [Email/SNOW]
+
+**TITLE BOLDING** — Bold the emoji + source tag + title text up to (but NOT including) the — separator. Everything after the — is plain text. This visually separates the "what" from the "who/detail". Format: `*🔵[Email] Subject Title* — remaining description or context label`
 
 ```
 :white_check_mark: *PRIORITIZED TO-DO LIST*
 ━━━━━━━━━━━━━━━━━━━━━━
-*P1 — Urgent (respond before noon)*
+:red_circle: *P1 — Urgent (respond before noon)*
 
-[N]. *[Email] [Title]* — [remaining subject/context label]
+[N]. *🔵[Email] [Title]* — [remaining subject/context label]
 [1-2 sentence context]
 → [link]
 
-[N]. *[Slack] [Title]* — [remaining subject/context label]
+[N]. *🟣[Slack] [Title]* — [remaining subject/context label]
 [1-2 sentence context]
 → [link]
 
-*P2 — Action Today*
+:large_yellow_circle: *P2 — Action Today*
 
-[N]. *[Calendar] [Title]* — [remaining subject/context label]
+[N]. *🟠[Calendar] [Title]* — [remaining subject/context label]
 [1-2 sentence context]
 → [link]
 
-[N]. *[Slack Later] [Title]* — [remaining subject/context label]
+[N]. *🔴[Slack Later] [Title]* — [remaining subject/context label]
 [1-2 sentence context]
 → [link]
 
-*P3 — FYI / No Response Needed*
+:large_green_circle: *P3 — FYI / No Response Needed*
 
-[N]. *[SNOW] [Title]* — [remaining subject/context label]
+[N]. *🟡[SNOW] [Title]* — [remaining subject/context label]
 [1 sentence context]
 → [link]
 ```
@@ -259,8 +258,129 @@ _Automated daily briefing · [HH:MM AM/PM PT] · Sent using Claude_
 
 Create a draft to `guillermo_guzman@intuit.com`:
 - **Subject**: `Daily Briefing — [Today's Date, e.g. April 3, 2026]`
-- **Body**: Plain text version of all six sections (Meetings, To-Do List, Slack Follow-ups, Starred Emails, CLPSE Report, Team Awareness)
-- **contentType**: `text/plain`
+- **Format**: Use the `htmlBody` parameter (NOT `body` or `contentType: text/plain`) so all links render as clickable hyperlinks
+- **ALWAYS use emojis** throughout — every section header, priority tier, and status indicator should include the same emojis used in the Slack messages (e.g. ☀️, 📅, ✅, 🔴, 🟡, 🟢, ⭐, 📌, 📊, 👥, ⏳, ⚠️, etc.)
+- **ALWAYS use 12-hour time format** (e.g. 9:30 AM, 1:45 PM) for ALL times — never use 24-hour format
+- **All links must use `<a href="URL">Open in Gmail</a>` or `<a href="URL">Open in Slack</a>` format** — never paste raw URLs
+
+### Gmail HTML structure
+
+Build the htmlBody as a self-contained HTML email using this template:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  body { font-family: Arial, sans-serif; font-size: 14px; color: #1a1a1a; max-width: 700px; }
+  hr { border: none; border-top: 2px solid #555; margin: 8px 0 12px 0; }
+  .section-title { font-weight: bold; font-size: 15px; margin-top: 22px; margin-bottom: 4px; }
+  .item { margin: 12px 0 8px 0; }
+  .item-title { font-weight: bold; }
+  .item-meta { color: #555; font-size: 13px; }
+  .p1 { color: #c0392b; font-weight: bold; }
+  .p2 { color: #e67e22; font-weight: bold; }
+  .p3 { color: #27ae60; font-weight: bold; }
+  .overdue { color: #c0392b; font-weight: bold; }
+  .pending { color: #e67e22; font-weight: bold; }
+  .footer { color: #888; font-size: 12px; margin-top: 24px; border-top: 1px solid #ccc; padding-top: 8px; }
+  a { color: #1a73e8; }
+</style>
+</head>
+<body>
+
+<p>☀️ <strong>GOOD MORNING, GUILLERMO!</strong><br>
+📅 <strong>[Full Date]</strong> &nbsp;|&nbsp; 🕘 <strong>[Current Time PT]</strong></p>
+<hr>
+
+<!-- MEETINGS -->
+<p class="section-title">🗓️ TODAY'S MEETINGS</p>
+<hr>
+<table style="width:100%; border-collapse:collapse;">
+  <tr>
+    <td style="padding:4px 8px;">[status emoji]</td>
+    <td style="padding:4px 8px;"><strong>[HH:MM AM – HH:MM AM]</strong></td>
+    <td style="padding:4px 8px;">[Event Name] [⚠️ if within 30 min]</td>
+  </tr>
+  <!-- repeat for each meeting -->
+</table>
+<p>🏖️ OOO: [Name] — [dates]</p>
+
+<!-- TO-DO LIST -->
+<p class="section-title">✅ PRIORITIZED TO-DO LIST</p>
+<hr>
+<p class="p1">🔴 P1 — URGENT (respond before noon)</p>
+<div class="item">
+  <span class="item-title">[N]. [Source] [Title]</span><br>
+  [1-2 sentence context]<br>
+  → <a href="[URL]">Open in Gmail</a>  <!-- or Open in Slack -->
+</div>
+<p class="p2">🟡 P2 — ACTION TODAY</p>
+<div class="item">
+  <span class="item-title">[N]. [Source] [Title]</span><br>
+  [context]<br>
+  → <a href="[URL]">Open in Gmail</a>
+</div>
+<p class="p3">🟢 P3 — FYI / NO RESPONSE NEEDED</p>
+<div class="item">
+  <span class="item-title">[N]. [Source] [Title]</span><br>
+  [context]<br>
+  → <a href="[URL]">Open in Gmail</a>
+</div>
+
+<!-- SLACK LATER -->
+<p class="section-title">💬 SLACK — FOLLOW-UPS (LATER)</p>
+<hr>
+<p class="overdue">🔴 OVERDUE / TIME-SENSITIVE</p>
+<div class="item">
+  <span class="item-title">[N]. [Sender] — [Channel/DM]</span><br>
+  [1 sentence on what action is needed]<br>
+  <span class="item-meta">Saved: [date]</span> → <a href="[permalink]">Open in Slack</a>
+</div>
+<p class="pending">🟡 PENDING ACTION</p>
+<div class="item">
+  <span class="item-title">[N]. [Sender] — [Channel/DM]</span><br>
+  [context]<br>
+  <span class="item-meta">Saved: [date]</span> → <a href="[permalink]">Open in Slack</a>
+</div>
+
+<!-- STARRED EMAILS -->
+<p class="section-title">⭐ STARRED EMAILS</p>
+<hr>
+<p><strong>📌 NEEDS FOLLOW-UP</strong></p>
+<div class="item">
+  <span class="item-title">[N]. [Sender] — [Subject]</span><br>
+  [1 sentence context] <span class="item-meta">| [Date]</span><br>
+  → <a href="[URL]">Open in Gmail</a>
+</div>
+<p><strong>🔖 SAVED FOR REFERENCE</strong></p>
+<div class="item">
+  <span class="item-title">[N]. [Sender] — [Subject]</span><br>
+  [1 sentence context] <span class="item-meta">| [Date]</span><br>
+  → <a href="[URL]">Open in Gmail</a>
+</div>
+
+<!-- CLPSE REPORT -->
+<p class="section-title">📊 CLPSE REPORT — [Today's Date]</p>
+<hr>
+<p><strong>Total Active:</strong> [n] &nbsp;|&nbsp; <strong>WIP:</strong> [n] &nbsp;|&nbsp; <strong>On Hold:</strong> [n] &nbsp;|&nbsp; <strong>Completed FY26:</strong> [n]</p>
+<p><strong>🟡 WIP Projects</strong></p>
+<p>[N]. [Project Name] — [CLPSE Owner]</p>
+<p><strong>⚪ On Hold</strong></p>
+<p>[N]. [Project Name] — [CLPSE Owner]</p>
+<p>Source: <a href="https://docs.google.com/spreadsheets/d/1HCgtlfpknaPxS_R72lmSStRO6Om4jJfFZfW7PoIjTbY">CLPSE Spotlight Tracker (live)</a></p>
+
+<!-- TEAM AWARENESS -->
+<p class="section-title">👥 TEAM AWARENESS</p>
+<hr>
+<p>• <strong>[Name]</strong> — [OOO/Training/Off-site detail]</p>
+
+<p class="footer">Automated daily briefing · [HH:MM AM/PM PT] · Sent using Claude</p>
+
+</body>
+</html>
+```
 
 ---
 
@@ -268,7 +388,11 @@ Create a draft to `guillermo_guzman@intuit.com`:
 
 - 5 sequential Slack messages posted to D2YFUFTSR ✓
 - Gmail draft saved to guillermo_guzman@intuit.com ✓
+- Gmail draft uses `htmlBody` with all links as clickable `<a href>` tags ✓
 - CLPSE stats pulled from live Google Sheets (not local file) ✓
 - All P1 items include direct message links ✓
 - Starred emails grouped into Follow-Up vs. Reference ✓
 - Slack Later items grouped into Overdue vs. Pending Action ✓
+- Gmail draft uses emojis throughout ✓
+- Gmail draft uses 12-hour time format for all times ✓
+- To-Do List items use source color coding (🔵 Email, 🟠 Calendar, 🟣 Slack, 🔴 Slack Later, 🟡 SNOW) ✓
