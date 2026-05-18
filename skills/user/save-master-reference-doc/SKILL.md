@@ -151,8 +151,8 @@ git -C "$REPO" add configs/github-config.md
 
 # Commit and push using stored PAT
 git -C "$REPO" commit -m "update: Master Reference v[N] -- [one-line summary] [YYYY-MM-DD]"
-git -C "$REPO" pull --rebase https://${PAT}@github.com/gguzman83/Claude_Github.git main
-git -C "$REPO" push https://${PAT}@github.com/gguzman83/Claude_Github.git main
+git -C "$REPO" pull --rebase https://${PAT}@github.intuit.com/gguzman/Claude_Github.git main
+git -C "$REPO" push https://${PAT}@github.intuit.com/gguzman/Claude_Github.git main
 ```
 
 Report results:
@@ -160,7 +160,7 @@ Report results:
     Saved to GitHub:
     - docs/Claude_Environment_Master_Reference_v[N].docx             (new)
     - docs/Archived/Claude_Environment_Master_Reference_v[N-1].docx  (archived)
-    View: https://github.com/gguzman83/Claude_Github
+    View: https://github.intuit.com/gguzman/Claude_Github
 
 ---
 

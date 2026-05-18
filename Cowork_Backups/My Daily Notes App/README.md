@@ -1,8 +1,8 @@
 # My Daily Notes App — Backup
 
-**Backed up:** 2026-05-15  
+**Backed up:** 2026-05-18  
 **Source:** /Users/gguzman/Documents/Claude/Claude_Github (local git clone)  
-**Latest changes:** Quick Capture preview fix (shows for any text), layout restructured to independent flex columns so minimizing a section pulls the one below it up
+**Latest changes:** Edit Note popup modal — clicking ✏️ on any note now opens a floating popup (like Quick Capture) instead of an inline form. Includes all format buttons, live preview, ⌘S save, Pin & Archive, and Escape-to-close.
 
 ## Files
 

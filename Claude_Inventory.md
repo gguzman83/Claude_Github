@@ -1,5 +1,5 @@
 # Claude Environment Inventory
-**Last updated:** 2026-05-15  
+**Last updated:** 2026-05-18  
 **Owner:** Guillermo Guzman · IT Manager, Techknow Bar MV & SF
 
 > This file is auto-updated by the `master-save` skill whenever a new skill, project, or artifact is added or modified.
@@ -89,8 +89,9 @@ Backups are stored in `Cowork_Backups/` and mirrored to `Claude_Github/Cowork_Ba
 
 | Resource | URL / Path |
 |---|---|
-| GitHub Repo | https://github.com/gguzman83/Claude_Github |
+| GitHub Repo | https://github.intuit.com/gguzman/Claude_Github |
 | CLPSE Tracker (live) | https://docs.google.com/spreadsheets/d/1HCgtlfpknaPxS_R72lmSStRO6Om4jJfFZfW7PoIjTbY/edit |
-| Master Reference Doc | https://docs.google.com/document/d/1DikWYZoNKolALoBeeBUXTboT7LlgHJNAK1LoXF7Gk9M/edit |
+| Master Reference Doc (Google) | https://docs.google.com/document/d/1DikWYZoNKolALoBeeBUXTboT7LlgHJNAK1LoXF7Gk9M/edit |
+| Master Reference Doc (latest) | `~/Documents/Claude/Claude_Github/docs/Claude_Environment_Master_Reference_v11.docx` |
 | Skills folder | `~/Documents/Claude/Skills/` |
 | Workspace folder | `~/Documents/Claude/` |

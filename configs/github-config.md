@@ -7,19 +7,19 @@
 The PAT is stored locally only in: `~/.claude-pat` (not tracked by git)
 
 **Scope:** repo  
-**Rotate at:** https://github.com/settings/tokens  
-**Last rotated:** May 14, 2026
+**Rotate at:** https://github.intuit.com/settings/tokens  
+**Last rotated:** May 15, 2026
 
 To update the PAT, run:
 ```bash
-echo "ghp_YOUR_NEW_TOKEN" > ~/.claude-pat
-chmod 600 ~/.claude-pat
+echo "ghp_YOUR_NEW_TOKEN" > ~/Documents/Claude/env.sh
+chmod 600 ~/Documents/Claude/env.sh
 ```
 
 ## Repo
 
 ```
-https://github.com/gguzman83/Claude_Github
+https://github.intuit.com/gguzman/Claude_Github
 ```
 
 ## Known machine paths

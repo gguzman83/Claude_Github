@@ -455,7 +455,7 @@ const section8 = [
   h1("8. Quick Reference"),
   infoTable([
     ["Apps Script Project URL", "script.google.com → your project name"],
-    ["GitHub Backup (template source)", "github.com/gguzman83/Claude_Github/apps-script"],
+    ["GitHub Backup (template source)", "github.intuit.com/gguzman/Claude_Github/apps-script"],
     ["Your Google Doc ID", "[YOUR_DOC_ID]"],
     ["Your Google Doc Name", "[YOUR DOC NAME]"],
     ["PINNED tab anchor text", "[YOUR_PINNED_HEADING]"],
