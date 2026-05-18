@@ -105,28 +105,41 @@ If nothing new was added this session, skip this step.
 
 ---
 
-## Step 5 — Report the full save summary
+## Step 5 — Refresh the Workspace Dashboard
 
-After all applicable skills have run and the inventory is updated, give Guillermo one clean summary:
+After the inventory is updated, always run the dashboard scanner. Use the Bash tool:
+
+```bash
+python3 ~/Documents/Claude/Scripts/scan_dashboard.py
+```
+
+This rescans the Claude folder and `.claude/skills/` directory and injects fresh live data
+into `Claude_Workspace_Dashboard.html` — skills, projects, artifacts, scripts, docs,
+archive, and scheduled tasks all update automatically. It runs in under a second and is
+always safe. No conditions — run it every master-save, no exceptions.
+
+---
+
+## Step 6 — Report the full save summary
+
+After all applicable skills have run, the inventory is updated, and the dashboard is refreshed, give Guillermo one clean summary:
 
 ```
 ✅ Master Save complete
 
 What ran:
-• github-autosave — [N] files staged to workspace
+• github-autosave — [N] files pushed to GitHub
 • cowork-backup — [project/skill name] backed up to Cowork_Backups
 • save-master-reference-doc — Master Reference updated to v[N]
 • Claude_Inventory.md — updated ([what changed])
+• Claude_Workspace_Dashboard — rescanned and refreshed
 
 Nothing ran for: [any skills that didn't apply and why]
-
-📌 Last step — run this in your terminal to push to GitHub:
-push-to-github
 ```
 
-Always end with the `push-to-github` reminder — every time, no exceptions. The sandbox
-can't reach github.intuit.com (it's on Intuit's internal network), so the terminal push
-is always the final step.
+If GitHub was blocked by the network proxy (common on Intuit's network), the individual
+skills will have already noted this and provided terminal commands. Include a reminder in
+the summary so Guillermo knows to run those commands.
 
 ---
 

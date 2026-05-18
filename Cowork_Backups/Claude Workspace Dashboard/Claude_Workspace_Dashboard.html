@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="refresh" content="30">
+<title>Claude Workspace — Guillermo Guzman</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #222638;
+    --surface3: #2a2f46;
+    --border: #2e3350;
+    --accent: #7c6dff;
+    --accent2: #5bc8f5;
+    --accent3: #ff7eb3;
+    --accent4: #4ddb8e;
+    --accent5: #ffb347;
+    --accent6: #f76e6e;
+    --text: #e8eaf0;
+    --text2: #a0a8c0;
+    --text3: #636b8a;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* HEADER */
+  .header {
+    background: linear-gradient(135deg, #1a1d27 0%, #16192b 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(20px);
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .brand-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .brand-text h1 { font-size: 17px; font-weight: 700; color: var(--text); }
+  .brand-text p { font-size: 12px; color: var(--text3); margin-top: 1px; }
+  .updated-badge {
+    font-size: 11px;
+    color: var(--text3);
+    background: var(--surface2);
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+  }
+
+  /* STAT STRIP */
+  .stat-strip {
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+  }
+  .stat-strip::-webkit-scrollbar { display: none; }
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-right: 1px solid var(--border);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .stat:hover { background: var(--surface2); }
+  .stat-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .stat-num { font-size: 18px; font-weight: 700; color: var(--text); }
+  .stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* SEARCH BAR */
+  .search-wrap {
+    padding: 12px 32px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .search-input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 14px 8px 36px;
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    position: relative;
+    transition: border-color 0.2s;
+    max-width: 440px;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .search-wrap-inner { position: relative; flex: 1; max-width: 440px; }
+  .search-icon {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    color: var(--text3); font-size: 14px; pointer-events: none;
+  }
+  .filter-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .filter-chips::-webkit-scrollbar { display: none; }
+  .chip {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text2);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+  .chip.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+  /* MAIN LAYOUT */
+  .layout {
+    display: flex;
+    flex: 1;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 200px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 16px 0;
+    position: sticky;
+    top: 110px;
+    height: calc(100vh - 110px);
+    overflow-y: auto;
+  }
+  .sidebar-label {
+    font-size: 10px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 8px 16px 4px;
+    margin-top: 8px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    cursor: pointer;
+    border-radius: 0;
+    font-size: 13.5px;
+    color: var(--text2);
+    transition: all 0.15s;
+    border-left: 2px solid transparent;
+    user-select: none;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { color: var(--text); background: var(--surface2); border-left-color: var(--accent); }
+  .nav-item .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+  .nav-badge {
+    margin-left: auto;
+    font-size: 10px;
+    background: var(--surface3);
+    color: var(--text3);
+    padding: 2px 6px;
+    border-radius: 10px;
+    min-width: 20px;
+    text-align: center;
+  }
+
+  /* MAIN CONTENT */
+  .main {
+    flex: 1;
+    padding: 24px 28px;
+    overflow-y: auto;
+    min-width: 0;
+  }
+
+  /* SECTION HEADER */
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .section-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .section-count {
+    font-size: 13px;
+    color: var(--text3);
+  }
+
+  /* CARDS GRID */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+  }
+  .cards-grid.wide { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+
+  /* CARD */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .card:hover {
+    border-color: var(--accent);
+    background: var(--surface2);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.3);
+  }
+  .card:hover::before { opacity: 1; }
+
+  /* Card accent colors by category */
+  .card[data-cat="autosave"]::before { background: var(--accent4); }
+  .card[data-cat="daily"]::before { background: var(--accent2); }
+  .card[data-cat="docs-files"]::before { background: var(--accent5); }
+  .card[data-cat="setup"]::before { background: var(--accent); }
+  .card[data-cat="people"]::before { background: var(--accent3); }
+  .card[data-cat="project"]::before { background: var(--accent2); }
+  .card[data-cat="artifact"]::before { background: var(--accent3); }
+  .card[data-cat="script"]::before { background: var(--accent5); }
+  .card[data-cat="doc"]::before { background: var(--accent); }
+  .card[data-cat="archive"]::before { background: var(--text3); }
+  .card[data-cat="scheduled"]::before { background: var(--accent4); }
+
+  .card-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .card-icon {
+    width: 38px; height: 38px;
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .card-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; }
+  .card-subtitle { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .card-desc {
+    font-size: 12.5px;
+    color: var(--text2);
+    line-height: 1.55;
+    margin-bottom: 10px;
+  }
+  .card-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag {
+    font-size: 10.5px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--surface3);
+    color: var(--text3);
+    border: 1px solid var(--border);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  /* DETAIL PANEL */
+  .detail-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 200;
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.15s ease;
+  }
+  .detail-overlay.open { display: flex; align-items: center; justify-content: center; }
+  .detail-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: 90%;
+    max-width: 580px;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 28px;
+    position: relative;
+    animation: slideUp 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .detail-close {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    border-radius: 8px;
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.15s;
+  }
+  .detail-close:hover { color: var(--text); background: var(--surface3); }
+  .detail-icon { font-size: 32px; margin-bottom: 10px; }
+  .detail-title { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .detail-category {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 16px;
+    font-weight: 500;
+  }
+  .detail-section { margin-bottom: 16px; }
+  .detail-label {
+    font-size: 11px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 6px;
+  }
+  .detail-text {
+    font-size: 13.5px;
+    color: var(--text2);
+    line-height: 1.6;
+  }
+  .detail-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .detail-tag {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: var(--surface3);
+    color: var(--text2);
+    border: 1px solid var(--border);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  .detail-path {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    color: var(--accent2);
+    background: var(--surface2);
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    word-break: break-all;
+    line-height: 1.5;
+  }
+  .detail-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 16px 0;
+  }
+
+  /* OVERVIEW GRID */
+  .overview-section { margin-bottom: 32px; }
+  .overview-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .overview-section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* SKILLS CATEGORY GROUP */
+  .skills-group { margin-bottom: 28px; }
+  .skills-group-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* FILE LIST */
+  .file-list { display: flex; flex-direction: column; gap: 8px; }
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .file-item:hover { border-color: var(--accent); background: var(--surface2); }
+  .file-icon { font-size: 18px; flex-shrink: 0; }
+  .file-name { font-size: 13.5px; font-weight: 500; color: var(--text); }
+  .file-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .file-ext {
+    margin-left: auto;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--surface3);
+    color: var(--text3);
+    font-family: monospace;
+    flex-shrink: 0;
+  }
+
+  /* SECTION visibility */
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* No results */
+  .no-results {
+    text-align: center;
+    color: var(--text3);
+    padding: 48px;
+    font-size: 14px;
+  }
+  .no-results .no-icon { font-size: 40px; margin-bottom: 12px; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
+
+  /* Color tokens for categories */
+  .color-autosave { color: var(--accent4); }
+  .color-daily { color: var(--accent2); }
+  .color-docs-files { color: var(--accent5); }
+  .color-setup { color: var(--accent); }
+  .color-people { color: var(--accent3); }
+  .color-project { color: var(--accent2); }
+  .color-artifact { color: var(--accent3); }
+  .color-script { color: var(--accent5); }
+  .color-doc { color: var(--accent); }
+  .color-archive { color: var(--text3); }
+  .color-scheduled { color: var(--accent4); }
+
+  .bg-autosave { background: rgba(77,219,142,0.12); }
+  .bg-daily { background: rgba(91,200,245,0.12); }
+  .bg-docs-files { background: rgba(255,179,71,0.12); }
+  .bg-setup { background: rgba(124,109,255,0.12); }
+  .bg-people { background: rgba(255,126,179,0.12); }
+  .bg-project { background: rgba(91,200,245,0.12); }
+  .bg-artifact { background: rgba(255,126,179,0.12); }
+  .bg-script { background: rgba(255,179,71,0.12); }
+  .bg-doc { background: rgba(124,109,255,0.12); }
+  .bg-archive { background: rgba(100,107,138,0.12); }
+  .bg-scheduled { background: rgba(77,219,142,0.12); }
+
+  .badge-autosave { background: rgba(77,219,142,0.15); color: var(--accent4); border: 1px solid rgba(77,219,142,0.3); }
+  .badge-daily { background: rgba(91,200,245,0.15); color: var(--accent2); border: 1px solid rgba(91,200,245,0.3); }
+  .badge-docs-files { background: rgba(255,179,71,0.15); color: var(--accent5); border: 1px solid rgba(255,179,71,0.3); }
+  .badge-setup { background: rgba(124,109,255,0.15); color: var(--accent); border: 1px solid rgba(124,109,255,0.3); }
+  .badge-people { background: rgba(255,126,179,0.15); color: var(--accent3); border: 1px solid rgba(255,126,179,0.3); }
+  .badge-project { background: rgba(91,200,245,0.15); color: var(--accent2); border: 1px solid rgba(91,200,245,0.3); }
+  .badge-artifact { background: rgba(255,126,179,0.15); color: var(--accent3); border: 1px solid rgba(255,126,179,0.3); }
+  .badge-script { background: rgba(255,179,71,0.15); color: var(--accent5); border: 1px solid rgba(255,179,71,0.3); }
+  .badge-doc { background: rgba(124,109,255,0.15); color: var(--accent); border: 1px solid rgba(124,109,255,0.3); }
+  .badge-archive { background: rgba(100,107,138,0.15); color: var(--text3); border: 1px solid rgba(100,107,138,0.3); }
+  .badge-scheduled { background: rgba(77,219,142,0.15); color: var(--accent4); border: 1px solid rgba(77,219,142,0.3); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <div class="brand">
+      <div class="brand-icon">🤖</div>
+      <div class="brand-text">
+        <h1>Claude Workspace</h1>
+        <p>Guillermo Guzman</p>
+      </div>
+    </div>
+    <div class="updated-badge" id="scanned-badge">Last scanned: May 18, 2026</div>
+  </div>
+  <div class="stat-strip">
+    <div class="stat" onclick="showSection('skills')">
+      <div class="stat-dot" style="background:var(--accent)"></div>
+      <div><div class="stat-num" id="cnt-skills">—</div><div class="stat-label">Skills</div></div>
+    </div>
+    <div class="stat" onclick="showSection('projects')">
+      <div class="stat-dot" style="background:var(--accent2)"></div>
+      <div><div class="stat-num" id="cnt-projects">—</div><div class="stat-label">Projects</div></div>
+    </div>
+    <div class="stat" onclick="showSection('artifacts')">
+      <div class="stat-dot" style="background:var(--accent3)"></div>
+      <div><div class="stat-num" id="cnt-artifacts">—</div><div class="stat-label">Artifacts</div></div>
+    </div>
+    <div class="stat" onclick="showSection('scripts')">
+      <div class="stat-dot" style="background:var(--accent5)"></div>
+      <div><div class="stat-num" id="cnt-scripts">—</div><div class="stat-label">Scripts</div></div>
+    </div>
+    <div class="stat" onclick="showSection('docs')">
+      <div class="stat-dot" style="background:var(--accent4)"></div>
+      <div><div class="stat-num" id="cnt-docs">—</div><div class="stat-label">Docs</div></div>
+    </div>
+    <div class="stat" onclick="showSection('scheduled')">
+      <div class="stat-dot" style="background:var(--accent6)"></div>
+      <div><div class="stat-num" id="cnt-scheduled">—</div><div class="stat-label">Scheduled</div></div>
+    </div>
+    <div class="stat" onclick="showSection('archive')">
+      <div class="stat-dot" style="background:var(--text3)"></div>
+      <div><div class="stat-num" id="cnt-archive">—</div><div class="stat-label">Archived</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- SEARCH + FILTER -->
+<div class="search-wrap">
+  <div class="filter-chips" id="filterChips">
+    <div class="chip active" onclick="filterByType('all', this)">All</div>
+    <div class="chip" onclick="filterByType('skill', this)">Skills</div>
+    <div class="chip" onclick="filterByType('project', this)">Projects</div>
+    <div class="chip" onclick="filterByType('artifact', this)">Artifacts</div>
+    <div class="chip" onclick="filterByType('script', this)">Scripts</div>
+    <div class="chip" onclick="filterByType('doc', this)">Docs</div>
+    <div class="chip" onclick="filterByType('archive', this)">Archive</div>
+  </div>
+  <div class="search-wrap-inner">
+    <span class="search-icon">🔍</span>
+    <input class="search-input" type="text" placeholder="Search skills, projects, files..." oninput="filterCards(this.value)" id="searchInput">
+  </div>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-label">Views</div>
+    <div class="nav-item active" onclick="showSection('overview')" id="nav-overview">
+      <span class="nav-icon">🏠</span> Overview
+    </div>
+
+    <div class="sidebar-label">Content</div>
+    <div class="nav-item" onclick="showSection('skills')" id="nav-skills">
+      <span class="nav-icon">⚡</span> Skills
+      <span class="nav-badge">17</span>
+    </div>
+    <div class="nav-item" onclick="showSection('projects')" id="nav-projects">
+      <span class="nav-icon">🚀</span> Projects
+      <span class="nav-badge">5</span>
+    </div>
+    <div class="nav-item" onclick="showSection('artifacts')" id="nav-artifacts">
+      <span class="nav-icon">🎨</span> Artifacts
+      <span class="nav-badge">4</span>
+    </div>
+    <div class="nav-item" onclick="showSection('scripts')" id="nav-scripts">
+      <span class="nav-icon">📜</span> Scripts
+      <span class="nav-badge">5</span>
+    </div>
+    <div class="nav-item" onclick="showSection('docs')" id="nav-docs">
+      <span class="nav-icon">📄</span> Docs
+      <span class="nav-badge">4</span>
+    </div>
+
+    <div class="sidebar-label">System</div>
+    <div class="nav-item" onclick="showSection('scheduled')" id="nav-scheduled">
+      <span class="nav-icon">⏰</span> Scheduled
+      <span class="nav-badge">1</span>
+    </div>
+    <div class="nav-item" onclick="showSection('github')" id="nav-github">
+      <span class="nav-icon">🐙</span> GitHub Sync
+    </div>
+    <div class="nav-item" onclick="showSection('archive')" id="nav-archive">
+      <span class="nav-icon">🗂️</span> Archive
+      <span class="nav-badge">3</span>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main" id="mainContent">
+
+    <!-- OVERVIEW -->
+    <div class="section active" id="section-overview">
+      <div class="overview-section">
+        <div class="overview-section-title">⚡ Skills</div>
+        <div class="cards-grid" id="overview-skills-grid"></div>
+      </div>
+      <div class="overview-section">
+        <div class="overview-section-title">🚀 Projects</div>
+        <div class="cards-grid" id="overview-projects-grid"></div>
+      </div>
+      <div class="overview-section">
+        <div class="overview-section-title">🎨 Artifacts</div>
+        <div class="cards-grid" id="overview-artifacts-grid"></div>
+      </div>
+    </div>
+
+    <!-- SKILLS -->
+    <div class="section" id="section-skills">
+      <div class="section-header">
+        <div class="section-title">Skills</div>
+        <div class="section-count">17 installed</div>
+      </div>
+      <div id="skills-groups"></div>
+    </div>
+
+    <!-- PROJECTS -->
+    <div class="section" id="section-projects">
+      <div class="section-header">
+        <div class="section-title">Projects</div>
+        <div class="section-count">5 in Cowork Backups</div>
+      </div>
+      <div class="cards-grid wide" id="projects-grid"></div>
+    </div>
+
+    <!-- ARTIFACTS -->
+    <div class="section" id="section-artifacts">
+      <div class="section-header">
+        <div class="section-title">Artifacts</div>
+        <div class="section-count">4 HTML artifacts</div>
+      </div>
+      <div class="cards-grid" id="artifacts-grid"></div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <div class="section" id="section-scripts">
+      <div class="section-header">
+        <div class="section-title">Scripts</div>
+        <div class="section-count">5 files in Scripts/</div>
+      </div>
+      <div class="file-list" id="scripts-list"></div>
+    </div>
+
+    <!-- DOCS -->
+    <div class="section" id="section-docs">
+      <div class="section-header">
+        <div class="section-title">Docs</div>
+        <div class="section-count">4 documents</div>
+      </div>
+      <div class="file-list" id="docs-list"></div>
+    </div>
+
+    <!-- SCHEDULED -->
+    <div class="section" id="section-scheduled">
+      <div class="section-header">
+        <div class="section-title">Scheduled Tasks</div>
+        <div class="section-count">1 active task</div>
+      </div>
+      <div class="cards-grid" id="scheduled-grid"></div>
+    </div>
+
+    <!-- GITHUB -->
+    <div class="section" id="section-github">
+      <div class="section-header">
+        <div class="section-title">GitHub Sync</div>
+        <div class="section-count">Claude_Github/ → github.intuit.com/gguzman</div>
+      </div>
+      <div class="file-list" id="github-list"></div>
+    </div>
+
+    <!-- ARCHIVE -->
+    <div class="section" id="section-archive">
+      <div class="section-header">
+        <div class="section-title">Archive</div>
+        <div class="section-count">3 archived versions</div>
+      </div>
+      <div class="file-list" id="archive-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- DETAIL OVERLAY -->
+<div class="detail-overlay" id="detailOverlay" onclick="closeDetail(event)">
+  <div class="detail-panel" id="detailPanel">
+    <div class="detail-close" onclick="closeDetail()">✕</div>
+    <div class="detail-icon" id="d-icon"></div>
+    <div class="detail-title" id="d-title"></div>
+    <div class="detail-category" id="d-category"></div>
+    <hr class="detail-divider">
+    <div class="detail-section" id="d-desc-section">
+      <div class="detail-label">What it does</div>
+      <div class="detail-text" id="d-desc"></div>
+    </div>
+    <div class="detail-section" id="d-trigger-section">
+      <div class="detail-label">Trigger phrases</div>
+      <div class="detail-tags" id="d-triggers"></div>
+    </div>
+    <div class="detail-section" id="d-path-section">
+      <div class="detail-label">Location</div>
+      <div class="detail-path" id="d-path"></div>
+    </div>
+    <div class="detail-section" id="d-files-section" style="display:none">
+      <div class="detail-label">Files</div>
+      <div class="detail-tags" id="d-files"></div>
+    </div>
+    <div class="detail-section" id="d-versions-section" style="display:none">
+      <div class="detail-label">Versions</div>
+      <div class="detail-text" id="d-versions"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// DATA  (auto-generated by scan_dashboard.py — do not edit manually)
+// ============================================================
+//__DATA_START__
+const SCANNED_AT = "May 18, 2026 14:53";
+const SKILLS     = [
+  {
+    "id": "chat-summary",
+    "name": "chat-summary",
+    "icon": "📝",
+    "cat": "daily",
+    "catLabel": "Daily Operations",
+    "desc": "Generate a clean, structured summary of today's Claude chat sessions that captures what was worked on, decisions made, outputs produced, and next steps. Use this skill whenever the user asks to summarize a chat, capture today's work, \"what did we do today\", \"end of day summary\", ",
+    "triggers": [
+      "\"what did we do today\"",
+      "\"end of day summary\"",
+      "\"wrap up this session\"",
+      "\"summarize this conversation\""
+    ],
+    "path": "~/.claude/skills/chat-summary/SKILL.md"
+  },
+  {
+    "id": "clpse-thankyou",
+    "name": "clpse-thankyou",
+    "icon": "🙏",
+    "cat": "daily",
+    "catLabel": "Daily Operations",
+    "desc": "Reads a Scope of Project Summary from Google Drive, analyzes the project, and drafts a professional, high-energy Slack message thanking the CLPSE or contributors on that project. Use this skill whenever the user asks to write a thank-you, shoutout, recognition message, or appreci",
+    "triggers": [
+      "\"write a thank-you for the CLPSE on this project\"",
+      "\"draft a Slack message for the project lead\"",
+      "\"Scope of Project\"",
+      "\"Project Summary\""
+    ],
+    "path": "~/.claude/skills/clpse-thankyou/SKILL.md"
+  },
+  {
+    "id": "consolidate-memory",
+    "name": "consolidate-memory",
+    "icon": "🧠",
+    "cat": "autosave",
+    "catLabel": "Autosave & Environment",
+    "desc": "Reflective pass over your memory files — merge duplicates, fix stale facts, prune the index.",
+    "triggers": [
+      "\"user prefers X format for launch docs\"",
+      "\"next week\"",
+      "\"this quarter\"",
+      "\"by Friday\""
+    ],
+    "path": "~/.claude/skills/consolidate-memory/SKILL.md"
+  },
+  {
+    "id": "cowork-backup",
+    "name": "cowork-backup",
+    "icon": "📦",
+    "cat": "autosave",
+    "catLabel": "Autosave & Environment",
+    "desc": "Backs up a Cowork project or skill to the Cowork_Backups folder in both /Users/gguzman/Documents/Claude/Claude_Github and /Users/gguzman/Documents/Claude/Cowork_Backups. Use this skill whenever Guillermo says \"back up [project]\", \"add [project] to Cowork_Backups\", \"update my back",
+    "triggers": [
+      "\"back up [project]\"",
+      "\"add [project] to Cowork_Backups\"",
+      "\"update my backup\"",
+      "\"back up my skills\""
+    ],
+    "path": "~/.claude/skills/cowork-backup/SKILL.md"
+  },
+  {
+    "id": "daily-briefing",
+    "name": "daily-briefing",
+    "icon": "☀️",
+    "cat": "daily",
+    "catLabel": "Daily Operations",
+    "desc": "Generates a personalized daily briefing by pulling from Gmail (unread emails + starred), Google Calendar (today's meetings), and Slack (DMs, @mentions, and Later/saved items), combines it with a live CLPSE project tracker report, then delivers everything as 5 formatted Slack mess",
+    "triggers": [
+      "\"what do I have today\"",
+      "\"catch me up\"",
+      "\"what needs my attention\"",
+      "\"run my briefing\""
+    ],
+    "path": "~/.claude/skills/daily-briefing/SKILL.md"
+  },
+  {
+    "id": "dashboard-sync-docs",
+    "name": "dashboard-sync-docs",
+    "icon": "🔄",
+    "cat": "setup",
+    "catLabel": "Setup & Development",
+    "desc": "Keeps the MTV Tech Dashboard documentation in sync after any change is made. Updates the \"? How to Read\" help modal inside the HTML file AND regenerates the \"How to Make This Dashboard.md\" reference guide. Trigger this skill whenever the user makes any change to the MTV Tech Dash",
+    "triggers": [
+      "\"? How to Read\"",
+      "\"How to Make This Dashboard.md\"",
+      "\"update the docs\"",
+      "\"sync the docs\""
+    ],
+    "path": "~/.claude/skills/dashboard-sync-docs/SKILL.md"
+  },
+  {
+    "id": "docx",
+    "name": "docx",
+    "icon": "📘",
+    "cat": "docs-files",
+    "catLabel": "Document & File Creation",
+    "desc": "Use this skill whenever the user wants to create, read, edit, or manipulate Word documents (.docx files). Triggers include: any mention of 'Word doc', 'word document', '.docx', or requests to produce professional documents with formatting like tables of contents, headings, page n",
+    "triggers": [
+      "\"doc.docx\""
+    ],
+    "path": "~/.claude/skills/docx/SKILL.md"
+  },
+  {
+    "id": "github-autosave",
+    "name": "github-autosave",
+    "icon": "🐙",
+    "cat": "autosave",
+    "catLabel": "Autosave & Environment",
+    "desc": "Reviews the current Claude chat or Cowork session and automatically saves any new or modified skills, artifacts, React components, HTML files, code files, SKILL.md files, or project files to Guillermo's GitHub repo (https://github.intuit.com/gguzman/Claude_Github) AND to the work",
+    "triggers": [
+      "\"autosave\"",
+      "\"save to GitHub\"",
+      "\"Github_Autosave\"",
+      "\"sync my session\""
+    ],
+    "path": "~/.claude/skills/github-autosave/SKILL.md"
+  },
+  {
+    "id": "master-save",
+    "name": "master-save",
+    "icon": "💾",
+    "cat": "autosave",
+    "catLabel": "Autosave & Environment",
+    "desc": "Orchestrates all of Guillermo's autosave skills in one shot. Scans the current session, figures out which saves apply, and triggers each one automatically. Use this skill whenever Guillermo says \"master save\", \"save everything\", \"end of session save\", \"wrap up and save\", \"do all ",
+    "triggers": [
+      "\"master save\"",
+      "\"save everything\"",
+      "\"end of session save\"",
+      "\"wrap up and save\""
+    ],
+    "path": "~/.claude/skills/master-save/SKILL.md"
+  },
+  {
+    "id": "organize-folder",
+    "name": "organize-folder",
+    "icon": "🗂️",
+    "cat": "autosave",
+    "catLabel": "Autosave & Environment",
+    "desc": "Scans the root of Guillermo's Documents/Claude workspace folder and moves loose files into the correct subfolders (Scripts/, Artifacts/, Docs/, Archive/, MISC_Chats/), creates any missing folders, and deletes junk. Use this skill whenever Guillermo says \"organize my Claude folder",
+    "triggers": [
+      "\"organize my Claude folder\"",
+      "\"clean up Documents/Claude\"",
+      "\"run the folder organizer\"",
+      "\"my Claude folder is messy\""
+    ],
+    "path": "~/.claude/skills/organize-folder/SKILL.md"
+  },
+  {
+    "id": "pdf",
+    "name": "pdf",
+    "icon": "📕",
+    "cat": "docs-files",
+    "catLabel": "Document & File Creation",
+    "desc": "Use this skill whenever the user wants to do anything with PDF files. This includes reading or extracting text/tables from PDFs, combining or merging multiple PDFs into one, splitting PDFs apart, rotating pages, adding watermarks, creating new PDFs, filling PDF forms, encrypting/",
+    "triggers": [
+      "\"document.pdf\"",
+      "\"Pages: {len(reader.pages)}\"",
+      "\"doc1.pdf\"",
+      "\"doc2.pdf\""
+    ],
+    "path": "~/.claude/skills/pdf/SKILL.md"
+  },
+  {
+    "id": "pptx",
+    "name": "pptx",
+    "icon": "📊",
+    "cat": "docs-files",
+    "catLabel": "Document & File Creation",
+    "desc": "Use this skill any time a .pptx file is involved in any way — as input, output, or both. This includes: creating slide decks, pitch decks, or presentations; reading, parsing, or extracting text from any .pptx file (even if the extracted content will be used elsewhere, like in an ",
+    "triggers": [
+      "\"deck,\\"",
+      "\"slides,\\"",
+      "\"presentation,\\"",
+      "\"work,\""
+    ],
+    "path": "~/.claude/skills/pptx/SKILL.md"
+  },
+  {
+    "id": "save-master-reference-doc",
+    "name": "save-master-reference-doc",
+    "icon": "📋",
+    "cat": "autosave",
+    "catLabel": "Autosave & Environment",
+    "desc": "Saves any new changes or modifications to the Claude_Environment_Master_Reference doc, archives older versions into the Master_Reference_doc folder, and pushes to GitHub. Use whenever the user says 'update the master reference doc', 'save changes to the reference', 'version the r",
+    "triggers": [
+      "\"save changes to the master reference\"",
+      "\"Last updated\""
+    ],
+    "path": "~/.claude/skills/save-master-reference-doc/SKILL.md"
+  },
+  {
+    "id": "schedule",
+    "name": "schedule",
+    "icon": "⏰",
+    "cat": "daily",
+    "catLabel": "Daily Operations",
+    "desc": "Create or update a scheduled task that runs automatically. Use when the user says things like \"every day\", \"each morning\", \"remind me in an hour\", \"run this at noon\", or wants to reschedule an existing task.",
+    "triggers": [
+      "\"every day\"",
+      "\"each morning\"",
+      "\"remind me in an hour\"",
+      "\"run this at noon\""
+    ],
+    "path": "~/.claude/skills/schedule/SKILL.md"
+  },
+  {
+    "id": "setup-cowork",
+    "name": "setup-cowork",
+    "icon": "🔧",
+    "cat": "setup",
+    "catLabel": "Setup & Development",
+    "desc": "Guided Cowork setup — install role-matched plugins, connect your tools, try a skill.",
+    "triggers": [
+      "\"Looks like you do [role] work — I'll set things up for that.\"",
+      "\"Looks like you already have…\"",
+      "\"); if it's empty, just say \""
+    ],
+    "path": "~/.claude/skills/setup-cowork/SKILL.md"
+  },
+  {
+    "id": "skill-creator",
+    "name": "skill-creator",
+    "icon": "🛠️",
+    "cat": "setup",
+    "catLabel": "Setup & Development",
+    "desc": "Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's desc",
+    "triggers": [
+      "\"I want to make a skill for X\"",
+      "\"how to install npm\"",
+      "\"evaluation\"",
+      "\"benchmark\""
+    ],
+    "path": "~/.claude/skills/skill-creator/SKILL.md"
+  },
+  {
+    "id": "xlsx",
+    "name": "xlsx",
+    "icon": "📗",
+    "cat": "docs-files",
+    "catLabel": "Document & File Creation",
+    "desc": "Use this skill any time a spreadsheet file is the primary input or output. This means any task where the user wants to: open, read, edit, or fix an existing .xlsx, .xlsm, .csv, or .tsv file (e.g., adding columns, computing formulas, formatting, charting, cleaning messy data); cre",
+    "triggers": [
+      "\"the xlsx in my downloads\\"",
+      "\" not \"",
+      "\"Revenue ($mm)\"",
+      "\", including percentages (e.g., \""
+    ],
+    "path": "~/.claude/skills/xlsx/SKILL.md"
+  }
+];
+const PROJECTS   = [
+  {
+    "id": "care-launch-clpse-tracker",
+    "name": "Care Launch CLPSE Tracker",
+    "icon": "🚀",
+    "cat": "project",
+    "desc": "1. In Cowork, use `mcp__cowork__create_artifact` to recreate the artifact from `index.html`",
+    "path": "Claude/Cowork_Backups/Care Launch CLPSE Tracker/",
+    "files": [
+      "README.md",
+      "index.html",
+      "thumbnail.png"
+    ],
+    "backupPath": "Claude/Cowork_Backups/Care Launch CLPSE Tracker/"
+  },
+  {
+    "id": "exectech-assessment",
+    "name": "ExecTech Assessment",
+    "icon": "🚀",
+    "cat": "project",
+    "desc": "1. Deploy `Code.gs` in a new Google Apps Script project",
+    "path": "Claude/Cowork_Backups/ExecTech Assessment/",
+    "files": [
+      "Code.gs",
+      "Exec Tech - Technical Assessment.html",
+      "Exec Tech Assessment - Documentation.docx",
+      "README.md"
+    ],
+    "backupPath": "Claude/Cowork_Backups/ExecTech Assessment/"
+  },
+  {
+    "id": "mtv---tech-projects-dashboard",
+    "name": "MTV - Tech Projects Dashboard",
+    "icon": "🚀",
+    "cat": "project",
+    "desc": "1. Open `MTV Tech Dashboard.html` directly in a browser — fully self-contained",
+    "path": "Claude/Cowork_Backups/MTV - Tech Projects Dashboard/",
+    "files": [
+      "How to Make This Dashboard.md",
+      "MTV Tech Dashboard.html",
+      "README.md",
+      "dashboard-sync-docs.skill"
+    ],
+    "backupPath": "Claude/Cowork_Backups/MTV - Tech Projects Dashboard/"
+  },
+  {
+    "id": "my-daily-briefing",
+    "name": "My Daily Briefing",
+    "icon": "🚀",
+    "cat": "project",
+    "desc": "1. Copy `skills/daily-briefing/SKILL.md` → `/Documents/Claude/.claude/skills/daily-briefing/SKILL.md`",
+    "path": "Claude/Cowork_Backups/My Daily Briefing/",
+    "files": [
+      "README.md"
+    ],
+    "backupPath": "Claude/Cowork_Backups/My Daily Briefing/"
+  },
+  {
+    "id": "my-daily-notes-app",
+    "name": "My Daily Notes App",
+    "icon": "🚀",
+    "cat": "project",
+    "desc": "Cowork project: My Daily Notes App",
+    "path": "Claude/Cowork_Backups/My Daily Notes App/",
+    "files": [
+      "Code.gs",
+      "README.md",
+      "index.html"
+    ],
+    "backupPath": "Claude/Cowork_Backups/My Daily Notes App/"
+  },
+  {
+    "id": "scripts",
+    "name": "Scripts",
+    "icon": "🚀",
+    "cat": "project",
+    "desc": "Cowork project: Scripts",
+    "path": "Claude/Cowork_Backups/Scripts/",
+    "files": [
+      "push-to-github.sh"
+    ],
+    "backupPath": "Claude/Cowork_Backups/Scripts/"
+  },
+  {
+    "id": "skills",
+    "name": "Skills",
+    "icon": "🚀",
+    "cat": "project",
+    "desc": "Copy any skill folder to `/Documents/Claude/.claude/skills/[skill-name]/` and restart Cowork.",
+    "path": "Claude/Cowork_Backups/Skills/",
+    "files": [
+      "README.md",
+      "cowork-backup.skill",
+      "dashboard-sync-docs.skill",
+      "github-autosave.skill"
+    ],
+    "backupPath": "Claude/Cowork_Backups/Skills/"
+  }
+];
+const ARTIFACTS  = [
+  {
+    "id": "care-launch-clpse-tracker",
+    "name": "Care Launch Clpse Tracker",
+    "icon": "🎨",
+    "cat": "artifact",
+    "desc": "Cowork artifact — 17 versions",
+    "path": "Claude/Artifacts/care-launch-clpse-tracker/index.html",
+    "versions": "17 versions"
+  },
+  {
+    "id": "daily-notes-app-index",
+    "name": "Daily Notes App Index",
+    "icon": "🌐",
+    "cat": "artifact",
+    "desc": "HTML artifact",
+    "path": "Claude/Artifacts/daily-notes-app-index.html",
+    "versions": "Single file"
+  },
+  {
+    "id": "index",
+    "name": "Index",
+    "icon": "🌐",
+    "cat": "artifact",
+    "desc": "HTML artifact",
+    "path": "Claude/Artifacts/index.html",
+    "versions": "Single file"
+  },
+  {
+    "id": "master-save-eval-review",
+    "name": "Master Save Eval Review",
+    "icon": "🌐",
+    "cat": "artifact",
+    "desc": "HTML artifact",
+    "path": "Claude/Artifacts/master-save-eval-review.html",
+    "versions": "Single file"
+  }
+];
+const SCRIPTS    = [
+  {
+    "id": "Code",
+    "name": "Code.gs",
+    "icon": "⚙️",
+    "cat": "script",
+    "desc": "Script file (.gs)",
+    "path": "Claude/Scripts/Code.gs",
+    "ext": ".gs"
+  },
+  {
+    "id": "DailyBriefing",
+    "name": "DailyBriefing.gs",
+    "icon": "⚙️",
+    "cat": "script",
+    "desc": "Script file (.gs)",
+    "path": "Claude/Scripts/DailyBriefing.gs",
+    "ext": ".gs"
+  },
+  {
+    "id": "env",
+    "name": "env.sh",
+    "icon": "🐚",
+    "cat": "script",
+    "desc": "Script file (.sh)",
+    "path": "Claude/Scripts/env.sh",
+    "ext": ".sh"
+  },
+  {
+    "id": "launch-tracker",
+    "name": "launch-tracker.command",
+    "icon": "🚀",
+    "cat": "script",
+    "desc": "Script file (.command)",
+    "path": "Claude/Scripts/launch-tracker.command",
+    "ext": ".command"
+  },
+  {
+    "id": "push-to-github",
+    "name": "push-to-github.sh",
+    "icon": "🐚",
+    "cat": "script",
+    "desc": "Script file (.sh)",
+    "path": "Claude/Scripts/push-to-github.sh",
+    "ext": ".sh"
+  }
+];
+const DOCS       = [
+  {
+    "id": "Claude_Environment_Master_Reference_LATEST",
+    "name": "Claude Environment Master Reference LATEST",
+    "icon": "📋",
+    "cat": "doc",
+    "desc": "Master reference document",
+    "path": "Claude/Claude_Environment_Master_Reference_LATEST.docx",
+    "ext": ".docx"
+  },
+  {
+    "id": "Claude_Environment_Master_Reference_v13",
+    "name": "Claude Environment Master Reference v13",
+    "icon": "📋",
+    "cat": "doc",
+    "desc": "Master reference document",
+    "path": "Claude/Claude_Environment_Master_Reference_v13.docx",
+    "ext": ".docx"
+  },
+  {
+    "id": "Claude_Inventory",
+    "name": "Claude Inventory",
+    "icon": "📄",
+    "cat": "doc",
+    "desc": "Document",
+    "path": "Claude/Claude_Inventory.md",
+    "ext": ".md"
+  },
+  {
+    "id": "DailyBriefing_Setup_Guide",
+    "name": "DailyBriefing Setup Guide",
+    "icon": "📄",
+    "cat": "doc",
+    "desc": "Documentation guide",
+    "path": "Claude/Docs/DailyBriefing_Setup_Guide.md",
+    "ext": ".md"
+  }
+];
+const ARCHIVE    = [
+  {
+    "id": "Claude_Environment_Master_Reference_v10_archived",
+    "name": "Claude Environment Master Reference v10 archived",
+    "icon": "🗄️",
+    "cat": "archive",
+    "desc": "Archived file",
+    "path": "Claude/Archive/Claude_Environment_Master_Reference_v10_archived.docx",
+    "ext": ".docx"
+  },
+  {
+    "id": "Claude_Environment_Master_Reference_v11",
+    "name": "Claude Environment Master Reference v11",
+    "icon": "🗄️",
+    "cat": "archive",
+    "desc": "Archived file",
+    "path": "Claude/Archive/Claude_Environment_Master_Reference_v11.docx",
+    "ext": ".docx"
+  },
+  {
+    "id": "Claude_Environment_Master_Reference_v12",
+    "name": "Claude Environment Master Reference v12",
+    "icon": "🗄️",
+    "cat": "archive",
+    "desc": "Archived file",
+    "path": "Claude/Archive/Claude_Environment_Master_Reference_v12.docx",
+    "ext": ".docx"
+  }
+];
+const SCHEDULED  = [
+  {
+    "id": "guillermo-briefing",
+    "name": "guillermo-briefing",
+    "icon": "⏰",
+    "cat": "scheduled",
+    "desc": "Send Guillermo's daily briefing to Slack and Gmail every weekday morning at 8:30 AM",
+    "path": "Claude/Scheduled/guillermo-briefing/",
+    "cadence": "Recurring (see SKILL.md)"
+  }
+];
+//__DATA_END__
+
+// ============================================================
+// CARD BUILDER
+// ============================================================
+function makeCard(item, compact) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.setAttribute('data-cat', item.cat);
+  card.setAttribute('data-name', item.name.toLowerCase());
+  card.setAttribute('data-type', getType(item.cat));
+  card.onclick = () => openDetail(item);
+
+  const triggers = item.triggers ? item.triggers.slice(0, 2).map(t => `<div class="tag">${t}</div>`).join('') : '';
+
+  card.innerHTML = `
+    <div class="card-top">
+      <div class="card-icon bg-${item.cat}">${item.icon}</div>
+      <div>
+        <div class="card-title">${item.name}</div>
+        <div class="card-subtitle">${item.catLabel || getCatLabel(item.cat)}</div>
+      </div>
+    </div>
+    <div class="card-desc">${item.desc.substring(0, compact ? 90 : 140)}${item.desc.length > (compact ? 90 : 140) ? '…' : ''}</div>
+    ${triggers ? `<div class="card-tags">${triggers}</div>` : ''}
+  `;
+  return card;
+}
+
+function makeFileItem(item) {
+  const el = document.createElement('div');
+  el.className = 'file-item';
+  el.setAttribute('data-cat', item.cat);
+  el.setAttribute('data-name', item.name.toLowerCase());
+  el.setAttribute('data-type', getType(item.cat));
+  el.onclick = () => openDetail(item);
+  el.innerHTML = `
+    <div class="file-icon">${item.icon}</div>
+    <div>
+      <div class="file-name">${item.name}</div>
+      <div class="file-meta">${item.desc.substring(0, 80)}…</div>
+    </div>
+    <div class="file-ext">${item.ext || item.cat}</div>
+  `;
+  return el;
+}
+
+function getType(cat) {
+  if (['autosave','daily','docs-files','setup','people'].includes(cat)) return 'skill';
+  if (cat === 'project') return 'project';
+  if (cat === 'artifact') return 'artifact';
+  if (cat === 'script') return 'script';
+  if (cat === 'archive') return 'archive';
+  if (cat === 'scheduled') return 'scheduled';
+  return 'doc';
+}
+
+function getCatLabel(cat) {
+  const map = { autosave:'Autosave & Environment', daily:'Daily Operations', 'docs-files':'Document & File Creation', setup:'Setup & Development', people:'People', project:'Project', artifact:'Artifact', script:'Script', doc:'Document', archive:'Archive', scheduled:'Scheduled Task' };
+  return map[cat] || cat;
+}
+
+// ============================================================
+// DETAIL PANEL
+// ============================================================
+function openDetail(item) {
+  document.getElementById('d-icon').textContent = item.icon;
+  document.getElementById('d-title').textContent = item.name;
+
+  const catEl = document.getElementById('d-category');
+  catEl.textContent = getCatLabel(item.cat);
+  catEl.className = `detail-category badge-${item.cat}`;
+
+  document.getElementById('d-desc').textContent = item.desc;
+  document.getElementById('d-path').textContent = item.path || '—';
+
+  // Triggers
+  const trigEl = document.getElementById('d-trigger-section');
+  if (item.triggers && item.triggers.length) {
+    trigEl.style.display = '';
+    document.getElementById('d-triggers').innerHTML = item.triggers.map(t => `<div class="detail-tag">${t}</div>`).join('');
+  } else {
+    trigEl.style.display = 'none';
+  }
+
+  // Files
+  const filesEl = document.getElementById('d-files-section');
+  if (item.files && item.files.length) {
+    filesEl.style.display = '';
+    document.getElementById('d-files').innerHTML = item.files.map(f => `<div class="detail-tag">${f}</div>`).join('');
+  } else {
+    filesEl.style.display = 'none';
+  }
+
+  // Versions
+  const verEl = document.getElementById('d-versions-section');
+  if (item.versions) {
+    verEl.style.display = '';
+    document.getElementById('d-versions').textContent = item.versions;
+  } else {
+    verEl.style.display = 'none';
+  }
+
+  document.getElementById('detailOverlay').classList.add('open');
+}
+
+function closeDetail(e) {
+  if (!e || e.target === document.getElementById('detailOverlay')) {
+    document.getElementById('detailOverlay').classList.remove('open');
+  }
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const sec = document.getElementById(`section-${name}`);
+  const nav = document.getElementById(`nav-${name}`);
+  if (sec) sec.classList.add('active');
+  if (nav) nav.classList.add('active');
+  history.replaceState(null, '', '#' + name);
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function renderOverview() {
+  const sg = document.getElementById('overview-skills-grid');
+  SKILLS.slice(0, 6).forEach(s => sg.appendChild(makeCard(s, true)));
+
+  const pg = document.getElementById('overview-projects-grid');
+  PROJECTS.forEach(p => pg.appendChild(makeCard(p, true)));
+
+  const ag = document.getElementById('overview-artifacts-grid');
+  ARTIFACTS.forEach(a => ag.appendChild(makeCard(a, true)));
+}
+
+function renderSkills() {
+  const container = document.getElementById('skills-groups');
+  const groups = {};
+  SKILLS.forEach(s => {
+    if (!groups[s.catLabel]) groups[s.catLabel] = [];
+    groups[s.catLabel].push(s);
+  });
+
+  const groupIcons = {
+    'Autosave & Environment': '💾',
+    'Daily Operations': '☀️',
+    'Document & File Creation': '📄',
+    'Setup & Development': '🛠️',
+  };
+
+  Object.entries(groups).forEach(([label, skills]) => {
+    const group = document.createElement('div');
+    group.className = 'skills-group';
+    group.innerHTML = `<div class="skills-group-title">${groupIcons[label] || '📁'} ${label} <span style="color:var(--text3);font-weight:400;font-size:11px">${skills.length} skills</span></div>`;
+    const grid = document.createElement('div');
+    grid.className = 'cards-grid';
+    skills.forEach(s => grid.appendChild(makeCard(s, false)));
+    group.appendChild(grid);
+    container.appendChild(group);
+  });
+}
+
+function renderProjects() {
+  const g = document.getElementById('projects-grid');
+  PROJECTS.forEach(p => g.appendChild(makeCard(p, false)));
+}
+
+function renderArtifacts() {
+  const g = document.getElementById('artifacts-grid');
+  ARTIFACTS.forEach(a => g.appendChild(makeCard(a, false)));
+}
+
+function renderScripts() {
+  const l = document.getElementById('scripts-list');
+  SCRIPTS.forEach(s => l.appendChild(makeFileItem(s)));
+}
+
+function renderDocs() {
+  const l = document.getElementById('docs-list');
+  DOCS.forEach(d => l.appendChild(makeFileItem(d)));
+}
+
+function renderScheduled() {
+  const g = document.getElementById('scheduled-grid');
+  SCHEDULED.forEach(s => {
+    const card = makeCard(s, false);
+    // add cadence tag
+    if (s.cadence) {
+      const tags = card.querySelector('.card-tags') || (() => { const t = document.createElement('div'); t.className = 'card-tags'; card.appendChild(t); return t; })();
+      tags.innerHTML = `<div class="tag">⏱ ${s.cadence}</div>`;
+    }
+    g.appendChild(card);
+  });
+}
+
+function renderGithub() {
+  const l = document.getElementById('github-list');
+  // Header note
+  const note = document.createElement('div');
+  note.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:12px;font-size:13px;color:var(--text2);';
+  note.innerHTML = `<strong style="color:var(--text)">🐙 github.intuit.com/gguzman/Claude_Github</strong><br>Everything below is synced to this repo via <code style="background:var(--surface3);padding:1px 5px;border-radius:4px;font-size:12px">push-to-github.sh</code>. Run the <strong>github-autosave</strong> skill to push changes.`;
+  l.appendChild(note);
+  GITHUB_ITEMS.forEach(i => l.appendChild(makeFileItem(i)));
+}
+
+function renderArchive() {
+  const l = document.getElementById('archive-list');
+  ARCHIVE.forEach(a => l.appendChild(makeFileItem(a)));
+}
+
+// ============================================================
+// SEARCH
+// ============================================================
+let currentTypeFilter = 'all';
+
+function filterCards(query) {
+  const q = query.toLowerCase();
+  document.querySelectorAll('.card, .file-item').forEach(el => {
+    const name = el.getAttribute('data-name') || '';
+    const type = el.getAttribute('data-type') || '';
+    const matchesQ = !q || name.includes(q);
+    const matchesT = currentTypeFilter === 'all' || type === currentTypeFilter;
+    el.style.display = matchesQ && matchesT ? '' : 'none';
+  });
+}
+
+function filterByType(type, chip) {
+  currentTypeFilter = type;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  filterCards(document.getElementById('searchInput').value);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+renderOverview();
+renderSkills();
+renderProjects();
+renderArtifacts();
+renderScripts();
+renderDocs();
+renderScheduled();
+renderGithub();
+renderArchive();
+
+// Update stat counts dynamically from data
+document.getElementById('cnt-skills').textContent    = SKILLS.length;
+document.getElementById('cnt-projects').textContent  = PROJECTS.length;
+document.getElementById('cnt-artifacts').textContent = ARTIFACTS.length;
+document.getElementById('cnt-scripts').textContent   = SCRIPTS.length;
+document.getElementById('cnt-docs').textContent      = DOCS.length;
+document.getElementById('cnt-scheduled').textContent = SCHEDULED.length;
+document.getElementById('cnt-archive').textContent   = ARCHIVE.length;
+
+// Update nav badges
+document.querySelectorAll('#nav-skills .nav-badge')[0].textContent    = SKILLS.length;
+document.querySelectorAll('#nav-projects .nav-badge')[0].textContent  = PROJECTS.length;
+document.querySelectorAll('#nav-artifacts .nav-badge')[0].textContent = ARTIFACTS.length;
+document.querySelectorAll('#nav-scripts .nav-badge')[0].textContent   = SCRIPTS.length;
+document.querySelectorAll('#nav-docs .nav-badge')[0].textContent      = DOCS.length;
+document.querySelectorAll('#nav-scheduled .nav-badge')[0].textContent = SCHEDULED.length;
+document.querySelectorAll('#nav-archive .nav-badge')[0].textContent   = ARCHIVE.length;
+
+// Update scanned badge
+if (typeof SCANNED_AT !== 'undefined') {
+  document.getElementById('scanned-badge').textContent = 'Last scanned: ' + SCANNED_AT;
+}
+
+// Restore section from URL hash, or default to overview
+const hashSection = window.location.hash.slice(1);
+const validSections = ['overview','skills','projects','artifacts','scripts','docs','scheduled','github','archive'];
+showSection(validSections.includes(hashSection) ? hashSection : 'overview');
+</script>
+</body>
+</html>
