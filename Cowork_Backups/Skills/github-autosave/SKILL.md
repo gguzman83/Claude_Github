@@ -1,9 +1,9 @@
 ---
-name: Github_Autosave
+name: github-autosave
 description: >
   Reviews the current Claude chat or Cowork session and automatically saves any new or
   modified skills, artifacts, React components, HTML files, code files, SKILL.md files,
-  or project files to Guillermo's GitHub repo (https://github.com/gguzman83/Claude_Github)
+  or project files to Guillermo's GitHub repo (https://github.intuit.com/gguzman/Claude_Github)
   AND to the workspace folder. Use this skill whenever the user says "autosave", "save my
   work", "save to GitHub", "Github_Autosave", "sync my session", "push changes", "save any
   new skills or artifacts", or asks to persist anything created in the current session.
@@ -22,9 +22,9 @@ modified in this session and make sure it's saved to both GitHub and the workspa
 This skill uses the GitHub REST API with a pre-configured PAT. Set it at the start of every run:
 
 ```bash
-source ~/Documents/Claude/env.sh 2>/dev/null
-# env.sh sets GITHUB_PAT, GITHUB_REPO, GITHUB_API
-# Stored at ~/Documents/Claude/env.sh — never committed to GitHub
+source ~/Documents/Claude/Scripts/env.sh 2>/dev/null
+# env.sh sets GITHUB_PAT, GITHUB_USER, GITHUB_REPO, GITHUB_API
+# Stored at ~/Documents/Claude/Scripts/env.sh — never committed to GitHub
 ```
 
 Never write the PAT to any file or include it in commit messages.
@@ -52,7 +52,7 @@ Items to look for:
 For each item found, note:
 1. What it is (type + name)
 2. Where it currently lives (path in /sessions/... or /tmp/...)
-3. Where it should go in GitHub (which folder under https://github.com/gguzman83/Claude_Github)
+3. Where it should go in GitHub (which folder under https://github.intuit.com/gguzman/Claude_Github)
 4. Whether it's NEW or MODIFIED
 
 ---
@@ -79,12 +79,14 @@ If unsure, default to `misc/[filename]`.
 ### 3a — Connectivity check (do this BEFORE attempting any commits)
 
 ```bash
+source ~/Documents/Claude/Scripts/env.sh 2>/dev/null
 HTTP_CODE=$(curl -s --max-time 8 -o /dev/null -w "%{http_code}" \
-  -H "Authorization: token $GITHUB_PAT" "https://api.github.com/user")
+  -H "Authorization: token $GITHUB_PAT" \
+  "https://github.intuit.com/api/v3/user")
 echo "GitHub connectivity: $HTTP_CODE"
 ```
 
-If `HTTP_CODE` is `000`, `403`, or empty → **GitHub is blocked by the Intuit network proxy.**
+If `HTTP_CODE` is `000`, `403`, or empty → **GitHub is unreachable from this sandbox.**
 - Skip all remaining curl/API calls — they will all fail
 - Jump straight to Step 4 (save files to workspace folder)
 - Use the "blocked" report template in Step 5
@@ -121,10 +123,10 @@ curl -s -X PUT \
 ### Error handling
 | Error | Action |
 |-------|--------|
-| 401 Unauthorized | PAT expired — update AUTHENTICATION section with new token |
+| 401 Unauthorized | PAT expired — generate new PAT at github.intuit.com/settings/tokens (repo scope), update Scripts/env.sh |
 | 422 Unprocessable | SHA mismatch — re-fetch SHA and retry once |
 | File > 1MB | Warn user, skip, suggest manual upload |
-| `000` / `403` / proxy error | GitHub blocked — skip to Step 4, use blocked report in Step 5 |
+| `000` / `403` / unreachable | GitHub sandbox can't reach Intuit network — skip to Step 4, use blocked report in Step 5 |
 
 ---
 
@@ -139,8 +141,8 @@ The workspace root is: `/sessions/<session-id>/mnt/Claude/`
 
 ⚠️ IMPORTANT: NEVER create files or folders outside of `/sessions/<session-id>/mnt/Claude/`. Everything must be saved inside this folder. Do NOT create folders directly in `/sessions/<session-id>/mnt/` or anywhere else on the filesystem outside the Claude folder.
 
-For skills, copy the packaged `.skill` file to the `skills/` subfolder.
-For code files, copy to an appropriate subfolder per the workspace-organizer structure.
+For skills, copy the packaged `.skill` file to the `Skills/` subfolder.
+For code files, copy to an appropriate subfolder per the workspace structure.
 
 ---
 
@@ -150,7 +152,7 @@ For code files, copy to an appropriate subfolder per the workspace-organizer str
 ```
 ✅ Github_Autosave complete — [N] files saved
 
-GitHub (https://github.com/gguzman83/Claude_Github):
+GitHub (https://github.intuit.com/gguzman/Claude_Github):
 • [file] → [path]
 • [file] → [path]
 
@@ -165,28 +167,25 @@ Commit: [short SHA or message]
 Nothing new to save — session had no new files or code changes.
 ```
 
-### If GitHub was blocked by network:
+### If GitHub was unreachable from sandbox:
 ```
-⚠️ GitHub push blocked — Intuit's network proxy is blocking api.github.com from this session.
+⚠️ GitHub push blocked — the Cowork sandbox can't reach github.intuit.com (it's on Intuit's internal network).
 
 Files are saved to your workspace folder ✅
 
-To push to GitHub, run this in your terminal:
+To push, run one command in your terminal:
 
-cd /Users/gguzman/Documents/Claude/Claude_Github
-git add [list the specific new/changed files here]
-git commit -m "Github_Autosave: [describe what was saved] [YYYY-MM-DD]"
-git pull https://gguzman83:$GITHUB_PAT@github.com/gguzman83/Claude_Github.git --rebase
-git push https://gguzman83:$GITHUB_PAT@github.com/gguzman83/Claude_Github.git
+push-to-github
+
+(If push-to-github isn't set up yet, run this first:
+cat ~/Documents/Claude/Scripts/push-to-github.sh >> ~/.zshrc && source ~/.zshrc)
 ```
-
-Always list the exact files to `git add` so Guillermo doesn't have to figure it out.
 
 ---
 
 ## Success criteria
 
-- All new/modified files from the session committed to GitHub (or terminal commands provided if blocked) ✓
+- All new/modified files from the session committed to GitHub (or `push-to-github` command provided if blocked) ✓
 - Final deliverables copied to workspace folder ✓
 - Commit message clearly describes what was saved ✓
 - No conflicts or push errors ✓
