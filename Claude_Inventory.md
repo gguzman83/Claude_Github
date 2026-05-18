@@ -1,5 +1,5 @@
 # Claude Environment Inventory
-**Last updated:** 2026-05-18  
+**Last updated:** 2026-05-18 (v12)  
 **Owner:** Guillermo Guzman · IT Manager, Techknow Bar MV & SF
 
 > This file is auto-updated by the `master-save` skill whenever a new skill, project, or artifact is added or modified.
@@ -50,6 +50,7 @@
 | **skill-creator** | `"create a skill"` / `"optimize this skill"` / `"edit the SKILL.md for..."` | Creates new skills, modifies existing skills, runs evals and benchmarks |
 | **setup-cowork** | `"set up Cowork"` / `"install plugins"` | Guided Cowork setup — installs role-matched plugins and connects tools |
 | **dashboard-sync-docs** | `"update the docs"` / `"sync the docs"` | Keeps the MTV Tech Dashboard documentation in sync after any change |
+| **organize-folder** | `"organize my Claude folder"` / `"clean up Documents/Claude"` / `"my Claude folder is messy"` | Scans root of Documents/Claude and moves loose files into proper subfolders (Scripts/, Artifacts/, Docs/, Archive/, MISC_Chats/) |
 
 ---
 
@@ -92,6 +93,6 @@ Backups are stored in `Cowork_Backups/` and mirrored to `Claude_Github/Cowork_Ba
 | GitHub Repo | https://github.intuit.com/gguzman/Claude_Github |
 | CLPSE Tracker (live) | https://docs.google.com/spreadsheets/d/1HCgtlfpknaPxS_R72lmSStRO6Om4jJfFZfW7PoIjTbY/edit |
 | Master Reference Doc (Google) | https://docs.google.com/document/d/1DikWYZoNKolALoBeeBUXTboT7LlgHJNAK1LoXF7Gk9M/edit |
-| Master Reference Doc (latest) | `~/Documents/Claude/Claude_Github/docs/Claude_Environment_Master_Reference_v11.docx` |
+| Master Reference Doc (latest) | `~/Documents/Claude/Claude_Github/docs/Claude_Environment_Master_Reference_v12.docx` |
 | Skills folder | `~/Documents/Claude/Skills/` |
 | Workspace folder | `~/Documents/Claude/` |
