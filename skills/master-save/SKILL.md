@@ -113,17 +113,20 @@ After all applicable skills have run and the inventory is updated, give Guillerm
 ✅ Master Save complete
 
 What ran:
-• github-autosave — [N] files pushed to GitHub
+• github-autosave — [N] files staged to workspace
 • cowork-backup — [project/skill name] backed up to Cowork_Backups
 • save-master-reference-doc — Master Reference updated to v[N]
 • Claude_Inventory.md — updated ([what changed])
 
 Nothing ran for: [any skills that didn't apply and why]
+
+📌 Last step — run this in your terminal to push to GitHub:
+push-to-github
 ```
 
-If GitHub was blocked by the network proxy (common on Intuit's network), the individual
-skills will have already noted this and provided terminal commands. Include a reminder in
-the summary so Guillermo knows to run those commands.
+Always end with the `push-to-github` reminder — every time, no exceptions. The sandbox
+can't reach github.intuit.com (it's on Intuit's internal network), so the terminal push
+is always the final step.
 
 ---
 
