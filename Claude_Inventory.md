@@ -1,5 +1,5 @@
 # Claude Environment Inventory
-**Last updated:** 2026-05-18 (v12)  
+**Last updated:** 2026-05-18 (v13)  
 **Owner:** Guillermo Guzman · IT Manager, Techknow Bar MV & SF
 
 > This file is auto-updated by the `master-save` skill whenever a new skill, project, or artifact is added or modified.
@@ -83,6 +83,7 @@ Backups are stored in `Cowork_Backups/` and mirrored to `Claude_Github/Cowork_Ba
 | **My Daily Briefing** | Daily briefing skill and config backup |
 | **My Daily Notes App** | Daily Notes App (HTML + Apps Script) backup |
 | **Skills/** | Individual skill backups for all installed skills |
+| **Claude Workspace Dashboard** | Live HTML dashboard + Python scanner + file watcher — dual-location sidebar (Claude + Claude_Github), auto-refresh, stat strip sync |
 
 ---
 
