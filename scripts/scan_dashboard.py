@@ -18,6 +18,7 @@ from datetime import datetime
 # ── Paths ────────────────────────────────────────────────────────────────────
 CLAUDE_DIR   = Path.home() / "Documents" / "Claude"
 SKILLS_DIR   = Path.home() / ".claude" / "skills"
+GITHUB_DIR   = CLAUDE_DIR / "Claude_Github"
 DASHBOARD    = CLAUDE_DIR / "Claude_Workspace_Dashboard.html"
 
 # ── Icon / category maps ─────────────────────────────────────────────────────
@@ -102,7 +103,9 @@ def extract_triggers(skill_dir):
     raw = re.findall(r'"([^"]{5,60})"', content)
     seen = []
     for t in raw:
-        if t not in seen and not t.startswith('http') and '\n' not in t:
+        # Strip backslashes that cause JSON double-encoding issues
+        t = t.replace('\\', '').strip()
+        if t not in seen and not t.startswith('http') and '\n' not in t and len(t) >= 4:
             seen.append(t)
         if len(seen) == 4:
             break
@@ -295,30 +298,161 @@ def scan_scheduled():
         })
     return items
 
+# ── GitHub-location scanners ──────────────────────────────────────────────────
+def scan_gh_projects():
+    """Cowork_Backups inside Claude_Github."""
+    items = []
+    bk = GITHUB_DIR / 'Cowork_Backups'
+    if not bk.exists():
+        return items
+    for d in sorted(bk.iterdir()):
+        if not d.is_dir() or d.name.startswith('.'):
+            continue
+        desc  = readme_desc(d) or f'Backed-up project: {d.name}'
+        files = [f.name for f in sorted(d.iterdir()) if f.is_file() and not f.name.startswith('.')]
+        items.append({
+            'id':         re.sub(r'[^a-z0-9]', '-', d.name.lower()),
+            'name':       d.name,
+            'icon':       '🚀',
+            'cat':        'project',
+            'desc':       desc,
+            'path':       f'Claude_Github/Cowork_Backups/{d.name}/',
+            'files':      files[:6],
+            'backupPath': f'Claude_Github/Cowork_Backups/{d.name}/',
+        })
+    return items
+
+def scan_gh_skills():
+    """Skills backed up inside Claude_Github/skills/."""
+    items = []
+    skills_dir = GITHUB_DIR / 'skills'
+    if not skills_dir.exists():
+        return items
+    for d in sorted(skills_dir.iterdir()):
+        if not d.is_dir() or d.name.startswith('.'):
+            continue
+        name = d.name
+        desc = extract_skill_description(d) or f'Backed-up skill: {name}'
+        cat  = SKILL_CATS.get(name, 'setup')
+        items.append({
+            'id':       name,
+            'name':     name,
+            'icon':     SKILL_ICONS.get(name, '⚡'),
+            'cat':      cat,
+            'catLabel': SKILL_CAT_LABELS.get(cat, 'Other'),
+            'desc':     desc,
+            'triggers': extract_triggers(d),
+            'path':     f'Claude_Github/skills/{name}/SKILL.md',
+        })
+    return items
+
+def scan_gh_scripts():
+    """Scripts inside Claude_Github/scripts/."""
+    items = []
+    scripts_dir = GITHUB_DIR / 'scripts'
+    if not scripts_dir.exists():
+        return items
+    for f in sorted(scripts_dir.iterdir()):
+        if not f.is_file() or f.name.startswith('.'):
+            continue
+        items.append({
+            'id':   f.stem,
+            'name': f.name,
+            'icon': EXT_ICONS.get(f.suffix, '📄'),
+            'cat':  'script',
+            'desc': f'Script file ({f.suffix or "no ext"})',
+            'path': f'Claude_Github/scripts/{f.name}',
+            'ext':  f.suffix or 'file',
+        })
+    return items
+
+def scan_gh_docs():
+    """Docs inside Claude_Github/docs/ (excluding Archived/ subfolder)."""
+    items = []
+    docs_dir = GITHUB_DIR / 'docs'
+    if not docs_dir.exists():
+        return items
+    doc_exts = {'.md', '.docx', '.pdf', '.txt', '.js', '.html'}
+    skip_dirs = {'Archived', 'Archive', 'Master_Reference_doc'}
+    for item in sorted(docs_dir.iterdir()):
+        if item.name.startswith('.') or item.name in skip_dirs:
+            continue
+        if item.is_file() and item.suffix in doc_exts:
+            label = ('Master reference document'
+                     if 'master_reference' in item.name.lower() or 'master reference' in item.name.lower()
+                     else 'Document')
+            items.append({
+                'id':   item.stem,
+                'name': item.stem.replace('_', ' ').replace('-', ' '),
+                'icon': EXT_ICONS.get(item.suffix, '📄'),
+                'cat':  'doc',
+                'desc': label,
+                'path': f'Claude_Github/docs/{item.name}',
+                'ext':  item.suffix,
+            })
+    return items
+
+def scan_gh_archive():
+    """Archived files inside Claude_Github/docs/Archived/ and docs/Master_Reference_doc/."""
+    items = []
+    arch_paths = [
+        GITHUB_DIR / 'docs' / 'Archived',
+        GITHUB_DIR / 'docs' / 'Master_Reference_doc',
+        GITHUB_DIR / 'docs' / 'Archive',
+    ]
+    doc_exts = {'.md', '.docx', '.pdf', '.txt', '.html'}
+    for arch in arch_paths:
+        if not arch.exists():
+            continue
+        for f in sorted(arch.iterdir()):
+            if f.is_file() and not f.name.startswith('.') and f.suffix in doc_exts:
+                items.append({
+                    'id':   f.stem,
+                    'name': f.stem.replace('_', ' '),
+                    'icon': '🗄️',
+                    'cat':  'archive',
+                    'desc': f'Archived in {arch.name}',
+                    'path': f'Claude_Github/docs/{arch.name}/{f.name}',
+                    'ext':  f.suffix or 'file',
+                })
+    return items
+
 # ── HTML injection ────────────────────────────────────────────────────────────
 def generate_data_block():
-    now      = datetime.now().strftime('%b %d, %Y %H:%M')
-    skills   = scan_skills()
-    projects = scan_projects()
-    arts     = scan_artifacts()
-    scripts  = scan_scripts()
-    docs     = scan_docs()
-    archive  = scan_archive()
-    sched    = scan_scheduled()
+    now         = datetime.now().strftime('%b %d, %Y %H:%M')
+    skills      = scan_skills()
+    projects    = scan_projects()
+    arts        = scan_artifacts()
+    scripts     = scan_scripts()
+    docs        = scan_docs()
+    archive     = scan_archive()
+    sched       = scan_scheduled()
+    gh_projects = scan_gh_projects()
+    gh_skills   = scan_gh_skills()
+    gh_scripts  = scan_gh_scripts()
+    gh_docs     = scan_gh_docs()
+    gh_archive  = scan_gh_archive()
 
     lines = [
-        f'const SCANNED_AT = {json.dumps(now)};',
-        f'const SKILLS     = {json.dumps(skills,    ensure_ascii=False, indent=2)};',
-        f'const PROJECTS   = {json.dumps(projects,  ensure_ascii=False, indent=2)};',
-        f'const ARTIFACTS  = {json.dumps(arts,      ensure_ascii=False, indent=2)};',
-        f'const SCRIPTS    = {json.dumps(scripts,   ensure_ascii=False, indent=2)};',
-        f'const DOCS       = {json.dumps(docs,      ensure_ascii=False, indent=2)};',
-        f'const ARCHIVE    = {json.dumps(archive,   ensure_ascii=False, indent=2)};',
-        f'const SCHEDULED  = {json.dumps(sched,     ensure_ascii=False, indent=2)};',
+        f'const SCANNED_AT  = {json.dumps(now)};',
+        f'const SKILLS      = {json.dumps(skills,       ensure_ascii=False, indent=2)};',
+        f'const PROJECTS    = {json.dumps(projects,     ensure_ascii=False, indent=2)};',
+        f'const ARTIFACTS   = {json.dumps(arts,         ensure_ascii=False, indent=2)};',
+        f'const SCRIPTS     = {json.dumps(scripts,      ensure_ascii=False, indent=2)};',
+        f'const DOCS        = {json.dumps(docs,         ensure_ascii=False, indent=2)};',
+        f'const ARCHIVE     = {json.dumps(archive,      ensure_ascii=False, indent=2)};',
+        f'const SCHEDULED   = {json.dumps(sched,        ensure_ascii=False, indent=2)};',
+        f'const GH_PROJECTS = {json.dumps(gh_projects,  ensure_ascii=False, indent=2)};',
+        f'const GH_SKILLS   = {json.dumps(gh_skills,    ensure_ascii=False, indent=2)};',
+        f'const GH_SCRIPTS  = {json.dumps(gh_scripts,   ensure_ascii=False, indent=2)};',
+        f'const GH_DOCS     = {json.dumps(gh_docs,      ensure_ascii=False, indent=2)};',
+        f'const GH_ARCHIVE  = {json.dumps(gh_archive,   ensure_ascii=False, indent=2)};',
     ]
 
-    print(f'  ✅ {len(skills)} skills · {len(projects)} projects · {len(arts)} artifacts · '
+    print(f'  ✅ Claude: {len(skills)} skills · {len(projects)} projects · {len(arts)} artifacts · '
           f'{len(scripts)} scripts · {len(docs)} docs · {len(archive)} archived · {len(sched)} scheduled')
+    print(f'  🐙 GitHub: {len(gh_projects)} projects · {len(gh_skills)} skills · '
+          f'{len(gh_scripts)} scripts · {len(gh_docs)} docs · {len(gh_archive)} archived')
     return '\n'.join(lines), now
 
 def update_html():
