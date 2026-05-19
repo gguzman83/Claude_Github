@@ -1,11 +1,11 @@
 # Claude Workspace Dashboard
 
-**Backed up:** 2026-05-18  
+**Backed up:** 2026-05-18 (updated)
 **Owner:** Guillermo Guzman · IT Manager, Techknow Bar MV & SF
 
 ## What this is
 
-A live, interactive read-only dashboard that visualizes everything in the `~/Documents/Claude` workspace — skills, projects, artifacts, scripts, docs, archive, and scheduled tasks. Opens as a local HTML file in any browser.
+A live, interactive read-only dashboard that visualizes everything across two locations — `~/Documents/Claude` and `~/Documents/Claude/Claude_Github` — with a dual-location collapsible sidebar, live stat strip that syncs to the active location, and auto-refresh every 30 seconds. Opens as a local HTML file in any browser.
 
 ## Files
 
@@ -38,6 +38,7 @@ A live, interactive read-only dashboard that visualizes everything in the `~/Doc
 
 ## Key paths scanned
 
+### 📁 Claude location
 | Section | Source |
 |---------|--------|
 | Skills | `~/.claude/skills/` |
@@ -47,3 +48,12 @@ A live, interactive read-only dashboard that visualizes everything in the `~/Doc
 | Docs | `~/Documents/Claude/` root + `Docs/` |
 | Archive | `~/Documents/Claude/Archive/` |
 | Scheduled | `~/Documents/Claude/Scheduled/` |
+
+### 🐙 Claude_Github location
+| Section | Source |
+|---------|--------|
+| Projects | `~/Documents/Claude/Claude_Github/Cowork_Backups/` |
+| Skills | `~/Documents/Claude/Claude_Github/skills/` |
+| Scripts | `~/Documents/Claude/Claude_Github/scripts/` |
+| Docs | `~/Documents/Claude/Claude_Github/docs/` |
+| Archive | `~/Documents/Claude/Claude_Github/docs/Archived/` + `Master_Reference_doc/` |
